@@ -20,8 +20,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.Request;
+import org.mitre.svmp.protocol.SVMPProtocol.Response;
+import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
+import org.mitre.svmp.protocol.SVMPProtocol.TouchEvent;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
 
 /**
@@ -29,24 +35,29 @@ import org.mitre.svmp.protocol.SVMPSensorEventMessage;
  * messages.
  * @author Dave Bryson
  */
-public abstract class BaseServer {
-    private ServerSocket serverSocket;
-    private OutputStream out = null;
-    private InputStream in = null;
-    private int port;
+public abstract class BaseServer implements Constants {
+    private ServerSocket proxySocket;
+    private OutputStream proxyOut = null;
+    private InputStream proxyIn = null;
+    private int proxyPort;
     private static final int BUFFER_SIZE = 8 * 1024;
     private static final String TAG = "BASE-EVENTSERVER";
     
     private native int InitSockClient(String path);
-    //private static native int SockClientWrite(int fd,byte[] buf, int len);    
-    private native int SockClientWrite(int fd,SVMPSensorEventMessage event);    
+    //private static native int SockClientWrite(int fd,byte[] buf, int len);
+    private native int SockClientWrite(int fd,SVMPSensorEventMessage event);
     private native int SockClientClose(int fd); 
     private int sockfd;
 
+    private ExecutorService sensorMsgExecutor;
+    private NettyServer intentServer;
+    private NettyServer locationServer;
+    private final Object sendMessageLock = new Object();
+
     public BaseServer(final int port) throws IOException {
         sockfd = InitSockClient("/dev/socket/svmp_sensors");
-        logInfo("InitSockClient returned " + sockfd);
-        this.port = port;
+        Utility.logInfo("InitSockClient returned " + sockfd);
+        this.proxyPort = port;
     }
     
     static {
@@ -54,21 +65,38 @@ public abstract class BaseServer {
     }
 
     public void start() throws IOException {
-        this.serverSocket = new ServerSocket(port);
-        logInfo("Event server listening on port " + port);
+        // We create a SingleThreadExecutor because it executes sequentially
+        // this guarantees that sensor event messages will be sent in order
+        sensorMsgExecutor = Executors.newSingleThreadExecutor();
+
+        // start Netty receivers for sending/receiving Intent and Location messages
+        startNettyServers();
+
+        this.proxySocket = new ServerSocket(proxyPort);
+        Utility.logInfo("Event server listening on proxyPort " + proxyPort);
         this.run();
+    }
+
+    public void startNettyServers() {
+        // start a new thread to receive Intent responses from the IntentHelper
+        intentServer = new NettyServer(this, NETTY_INTENT_PORT);
+        intentServer.start();
+
+        // start a new thread to receive Location responses from the LocationHelper
+        locationServer = new NettyServer(this, NETTY_LOCATION_PORT);
+        locationServer.start();
     }
 
     protected void run() {
         while (true) {
             Socket socket = null;
             try {
-                socket = serverSocket.accept();
-                logInfo("Socket connected");
-                out = socket.getOutputStream();
-                in = socket.getInputStream();
+                socket = proxySocket.accept();
+                Utility.logInfo("Socket connected");
+                proxyOut = socket.getOutputStream();
+                proxyIn = socket.getInputStream();
             } catch (IOException e) {
-                logError("Problem accepting socket: " + e.getMessage());
+                Utility.logError("Problem accepting socket: " + e.getMessage());
             }
 
             /**
@@ -79,7 +107,7 @@ public abstract class BaseServer {
              */
             try {
                 while (socket.isConnected()) {
-                    SVMPProtocol.Request msg = SVMPProtocol.Request.parseDelimitedFrom(in);
+                    SVMPProtocol.Request msg = SVMPProtocol.Request.parseDelimitedFrom(proxyIn);
                     //logInfo("Received message " + msg.getType().name());
                     
                     switch(msg.getType()) {
@@ -90,17 +118,26 @@ public abstract class BaseServer {
                     	handleTouch(msg.getTouch());
                     	break;
                     case SENSOREVENT:
+                        // use the thread pool to handle this
                     	handleSensor(msg.getSensor());
                     	break;
+                    case INTENT:
+                        // use the thread pool to handle this
+                        handleIntent(msg);
+                        break;
+                    case LOCATION:
+                        // use the thread pool to handle this
+                        handleLocation(msg);
+                        break;
                     }
                 }
             } catch (Exception e) {
-                logError("Error on socket: " + e.getMessage());
+                Utility.logError("Error on socket: " + e.getMessage());
                 e.printStackTrace();
             } finally {
                 try {
-                    in.close();
-                    out.close();
+                    proxyIn.close();
+                    proxyOut.close();
                     socket.close();
                 } catch (Exception e) {
                     // Don't care
@@ -109,27 +146,37 @@ public abstract class BaseServer {
         }
     }
 
-    protected void sendMessage(SVMPProtocol.Response message) throws IOException {
-    	message.writeDelimitedTo(out);
-    }
-
-    private void handleSensor(final SVMPProtocol.SensorEvent message) {
-        int type = message.getType().getNumber();
-        int accuracy = message.getAccuracy();
-        long timestamp = message.getTimestamp();
-        float[] values = new float[message.getValuesCount()];
-        for (int i = 0; i < values.length; i++) {
-        	values[i] = message.getValues(i);
+    protected void sendMessage(Response message) throws IOException {
+        // use synchronized statement to ensure only one message gets sent at a time
+        synchronized(sendMessageLock) {
+    	    message.writeDelimitedTo(proxyOut);
         }
-        
-        //logInfo("Forwarding sensor input to sensor lib");
-        SockClientWrite(sockfd, new SVMPSensorEventMessage(type, accuracy, timestamp, values));
     }
 
-    public abstract void handleScreenInfo(final SVMPProtocol.Request message);
-    public abstract void handleTouch(final SVMPProtocol.TouchEvent event);
+    public abstract void handleScreenInfo(final Request message);
+    public abstract void handleTouch(final TouchEvent event);
 
+    private void handleSensor(final SensorEvent event) {
+        // this SensorEvent was sent from the client, let's pass it on to the Sensor Message Unix socket
+        sensorMsgExecutor.execute(new SensorMessageRunnable(this, sockfd, event));
+    }
+    public void handleIntent(final Request request){
+        // this Intent was sent from the client, let's pass it on to the IntentHelper
+        intentServer.sendMessage(request);
+    }
+    public void handleLocation(final Request request){
+        // this LocationUpdate was sent from the client, let's pass it on to the LocationHelper
+        locationServer.sendMessage(request);
+    }
 
+    // called from the SensorMessageRunnable
+    public void sendSensorEvent(int sockfd, SVMPSensorEventMessage message) {
+        // send message
+        SockClientWrite(sockfd, message);
+    }
+
+    /*
     public abstract void logError(final String message);
     public abstract void logInfo(final String message);
+    */
 }

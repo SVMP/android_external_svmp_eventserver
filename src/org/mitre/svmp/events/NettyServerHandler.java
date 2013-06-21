@@ -43,8 +43,12 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
             // get the Response that was sent from the vm's Helper service
             Response response = (Response) msgs.get(i);
 
-            // pass the message on to the client
-            nettyServer.baseServer.sendMessage(response);
+            // a VMREADY response is a dummy message that is only used for handshaking to the Netty server;
+            // receiving a message the only way to make the server aware of the
+            // ChannelHandlerContext so it can push messages to the client
+            if( response.getType() != Response.ResponseType.VMREADY )
+                // pass the message on to the client
+                nettyServer.baseServer.sendMessage(response);
 
             // print output
             //Log.e(TAG, "Received Response: " + response.toString());

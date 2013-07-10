@@ -1,0 +1,79 @@
+<project name="protocol" default="dist" basedir=".">
+    <description>
+        simple example build file
+    </description>
+  <!-- set global properties for this build -->
+  <property name="src" location="src"/>
+  <property name="build" location="build"/>
+  <property name="build2" location="build2"/>
+  <property name="dist"  location="dist"/>
+  <property name="inputsrc"  location="../../../out/target/product/svmp/system/framework/" />
+  <property name="input" value="remote_events.jar" />
+  <property name="jnisrc"  location="../../../out/target/product/svmp/system/lib/" />
+  <property name="jni" value="libremote_events_jni.so" />
+  <property name="vm" value="mm160771-pc.mitre.org" />
+
+  <target name="init">
+	  <!-- Create the time stamp -->
+	  <tstamp/>
+	  <!--disconnect-->
+	  <exec  executable="adb">
+		  <arg value="disconnect" />
+		  <arg value="${vm}" />
+	  </exec>
+	   <!--connect-->
+	  <exec failonerror="true" executable="adb">
+		  <arg value="connect" />
+		  <arg value="${vm}" />
+	  </exec>
+  </target>
+
+  <target name="compile" depends="init"
+	  description="compile the source " >
+	  <exec executable="bash" newenvironment="false" dir="./">
+		  <arg value="./compile.sh" />
+	  </exec>
+
+  </target>
+  <target name="dist" depends="compile"
+	  description="deploy the file" >
+	  <!-- Create the distribution directory -->
+	  <!-- copy the input jar -->
+	  <echo message="adb push ${inputsrc}/${input} /system/framework/"/>
+	  <exec executable="adb">
+		  <arg value="push" />
+		  <arg value="${inputsrc}/${input}" />
+		  <arg value="/system/framework/" />
+	  </exec>
+	  <!-- copy the jni -->
+	  <echo message="adb push ${jnisrc}/${jni} /system/lib/"/>
+	  <exec executable="adb">
+		  <arg value="push" />
+		  <arg value="${jnisrc}/${jni}" />
+		  <arg value="/system/lib/" />
+	  </exec>
+  </target>
+  <target name="md5" depends="dist"
+	  description="sanity check" >
+	  <echo message="remote:"/>
+	  <exec executable="adb">
+		  <arg value="shell" />
+		  <arg value="md5sum" />
+		  <arg value="/system/framework/${input}" />
+		  <arg value="/system/lib/${jni}" />
+	  </exec>
+	  <echo message="local:"/>
+	  <exec executable="md5sum">
+		  <arg value="${inputsrc}/${input}" />
+		  <arg value="${jnisrc}/${jni}" />
+	  </exec>
+  </target>
+
+  <target name="clean"
+        description="clean up" >
+    <!-- Delete the ${build} and ${dist} directory trees -->
+    <delete dir="${build}"/>
+    <delete dir="${build2}"/>
+    <delete dir="${dist}"/>
+  </target>
+</project>

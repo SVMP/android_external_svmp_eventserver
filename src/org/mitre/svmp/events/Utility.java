@@ -17,6 +17,7 @@ package org.mitre.svmp.events;
 
 import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
+import org.mitre.svmp.protocol.SVMPProtocol.VideoRequest;
 
 /**
  * @author Joe Portner
@@ -35,6 +36,16 @@ public class Utility {
 
         // generate and return the SVMPSensorEventMessage
         return new SVMPSensorEventMessage(type, accuracy, timestamp, values);
+    }
+    public static FbStreamEventMessage toSVMPMessage(VideoRequest Request) {
+	int cmd = FbStreamEventMessage.START;
+	String IP = Request.getIp();
+	int port = Request.getPort();
+	int bitrate = 0;
+	if (Request.hasBitrate())
+		bitrate = Request.getBitrate();
+        return new FbStreamEventMessage(cmd,IP,port);
+
     }
 
     public static void logError(final String message) {

@@ -9,6 +9,37 @@ extern "C" {
 #endif
 #undef org_mitre_svmp_events_BaseServer_BUFFER_SIZE
 #define org_mitre_svmp_events_BaseServer_BUFFER_SIZE 8192L
+
+
+/*** Fbstream ***/
+/*
+ * Class:     org_mitre_svmp_events_BaseServer
+ * Method:    InitFbStreamClient
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_InitFbStreamClient
+  (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     org_mitre_svmp_events_BaseServer
+ * Method:    FbStreamClientWrite
+ * Signature: (ILorg/mitre/svmp/stream/RTSPEventMessage;)I
+ */
+JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
+  (JNIEnv *, jobject, jint, jobject);
+
+/*
+ * Class:     org_mitre_svmp_events_BaseServer
+ * Method:    FbStreamClientClose
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientClose
+  (JNIEnv *, jobject, jint);
+
+
+
+/***  End Fbstream ***/
+	
 /*
  * Class:     org_mitre_svmp_events_BaseServer
  * Method:    InitSockClient

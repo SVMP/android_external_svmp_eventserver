@@ -27,9 +27,12 @@ import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
+import org.mitre.svmp.protocol.SVMPProtocol.VideoRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.TouchEvent;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
 
+import org.mitre.svmp.events.FbStreamEventMessage;
+import org.mitre.svmp.events.FbStreamMessageRunnable;
 /**
  * Base, single-threaded, 1 socket at a time, TCP Server.  The server uses a queue to process
  * messages.
@@ -44,12 +47,18 @@ public abstract class BaseServer implements Constants {
     private static final String TAG = "BASE-EVENTSERVER";
     
     private native int InitSockClient(String path);
-    //private static native int SockClientWrite(int fd,byte[] buf, int len);
     private native int SockClientWrite(int fd,SVMPSensorEventMessage event);
     private native int SockClientClose(int fd); 
     private int sockfd;
+    // fbstream
+    private int fbstrfd;
+    private native int InitFbStreamClient(String path);
+    private native int FbStreamClientWrite(int fd,FbStreamEventMessage event);
+    private native int FbStreamClientClose(int fd); 
+
 
     private ExecutorService sensorMsgExecutor;
+    private ExecutorService fbstreamMsgExecutor;
     private NettyServer intentServer;
     private NettyServer locationServer;
     private final Object sendMessageLock = new Object();
@@ -58,6 +67,8 @@ public abstract class BaseServer implements Constants {
         sockfd = InitSockClient("/dev/socket/svmp_sensors");
         Utility.logInfo("InitSockClient returned " + sockfd);
         this.proxyPort = port;
+	fbstrfd = InitFbStreamClient("/dev/socket/fbstr_command");
+        Utility.logInfo("InitFbStreamClient returned " + fbstrfd);
     }
     
     static {
@@ -68,6 +79,8 @@ public abstract class BaseServer implements Constants {
         // We create a SingleThreadExecutor because it executes sequentially
         // this guarantees that sensor event messages will be sent in order
         sensorMsgExecutor = Executors.newSingleThreadExecutor();
+
+        fbstreamMsgExecutor = Executors.newSingleThreadExecutor();
 
         // start Netty receivers for sending/receiving Intent and Location messages
         startNettyServers();
@@ -129,6 +142,9 @@ public abstract class BaseServer implements Constants {
                         // use the thread pool to handle this
                         handleLocation(msg);
                         break;
+		    case VIDEO_PARAMS:
+			handleVideo(msg.getVideoRequest());
+			break;
                     }
                 }
             } catch (Exception e) {
@@ -160,6 +176,10 @@ public abstract class BaseServer implements Constants {
         // this SensorEvent was sent from the client, let's pass it on to the Sensor Message Unix socket
         sensorMsgExecutor.execute(new SensorMessageRunnable(this, sockfd, event));
     }
+    private void handleVideo(final VideoRequest event) {
+        // this VideoEvent was sent from the client, let's pass it on to the FBstream Message Unix socket
+        fbstreamMsgExecutor.execute(new FbStreamMessageRunnable(this, fbstrfd, event));
+    }
     public void handleIntent(final Request request){
         // this Intent was sent from the client, let's pass it on to the IntentHelper
         intentServer.sendMessage(request);
@@ -174,7 +194,11 @@ public abstract class BaseServer implements Constants {
         // send message
         SockClientWrite(sockfd, message);
     }
-
+    // called from the FbStreamMessageRunnable
+    public void sendFbStreamEvent(int sockfd, FbStreamEventMessage message) {
+        // send message
+        FbStreamClientWrite(sockfd, message);
+    }
     /*
     public abstract void logError(final String message);
     public abstract void logInfo(final String message);

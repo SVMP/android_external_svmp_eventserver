@@ -29,11 +29,13 @@ import java.nio.ByteBuffer;
  *
  */
 public class SVMPSensorEventMessage {
+	protected int type;
 	protected int accuracy;
 	protected long timestamp;
 	protected float[] values;
 		
 	public SVMPSensorEventMessage(int type, int accuracy, long timestamp, float[] values) {
+		this.type = type;
 		this.accuracy = accuracy;
 		this.timestamp = timestamp;
 		this.values = values;

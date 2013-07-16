@@ -24,6 +24,9 @@ import android.util.Log;
 import android.view.IWindowManager;
 import android.view.MotionEvent;
 import android.view.WindowManagerImpl;
+import android.hardware.display.DisplayManagerGlobal;
+import android.hardware.input.InputManager;
+import android.view.Display;
 import android.view.InputDevice;
 import android.view.Surface;
 import android.graphics.Point;
@@ -39,6 +42,7 @@ public class EventServer extends BaseServer {
     private static final String TAG = EventServer.class.getName();
 
     private IWindowManager windowManager;
+    private Display display;
     private long lastDownTime;
     private final Point screenSize = new Point();
     private double xScaleFactor, yScaleFactor;
@@ -46,15 +50,17 @@ public class EventServer extends BaseServer {
     public EventServer(Context context) throws IOException {
         super(context);
         windowManager = IWindowManager.Stub.asInterface(ServiceManager.getService("window"));
-
-        try{
-          windowManager.getRealDisplaySize(screenSize);
-        } catch (RemoteException re){
-          Log.e(TAG, "Error getting display size: " + re.getMessage());
-        }
-
+        display = DisplayManagerGlobal.getInstance().getRealDisplay(Display.DEFAULT_DISPLAY);
+                       
+        // try{
+          // windowManager.getRealDisplaySize(screenSize);	  
+          display.getRealSize(screenSize);
+        // } catch (RemoteException re){
+        //   Utility.logError("Error getting display size: " + re.getMessage());
+        // }
+        
         Log.d(TAG, "Display Size: " + screenSize.x + " , " + screenSize.y);
-
+         
         start();
         wake();
     }
@@ -136,9 +142,9 @@ public class EventServer extends BaseServer {
         MotionEvent me = MotionEvent.obtain(lastDownTime, now, event.getAction(), pointerSize, props, coords,
                                             0, 0, 1, 1, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
        try {
-    	  //Log.d(TAG, "injecting touch event");
-          windowManager.injectPointerEvent(me,false);
-          //InputManager.getInstance().injectInputEvent(me,InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT); 
+    	  //Utility.logInfo("injecting touch event");
+          // windowManager.injectPointerEvent(me,false);
+          InputManager.getInstance().injectInputEvent(me,InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT); 
        } catch (Exception e) {
          // ignore for now 
        } finally {
@@ -156,7 +162,8 @@ public class EventServer extends BaseServer {
         IPowerManager pm =
                 IPowerManager.Stub.asInterface(ServiceManager.getService(Context.POWER_SERVICE));
         try {
-            pm.userActivityWithForce(SystemClock.uptimeMillis(), true, true);
+            // pm.userActivityWithForce(SystemClock.uptimeMillis(), true, true);
+            pm.wakeUp(SystemClock.uptimeMillis());
         } catch (RemoteException e) {
             return false;
         }

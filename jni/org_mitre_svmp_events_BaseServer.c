@@ -73,16 +73,16 @@ jint Java_org_mitre_svmp_events_BaseServer_InitFbStreamClient( JNIEnv* env, jobj
 		                      sizeof(serv_addr.sun_family);
 
 	if ((clifd = socket(AF_UNIX,SOCK_STREAM,0)) < 0){
-		LOGD("error opening socket :%s\n", strerror(errno));
+		ALOGD("error opening socket :%s\n", strerror(errno));
 		return -1;
 	}
 
 	if (connect(clifd, (struct sockaddr *) &serv_addr, servlen) < 0) {
-		LOGD("error with connect():%s\n", strerror(errno));
+		ALOGD("error with connect():%s\n", strerror(errno));
 		return -1;
         }
 	(*env)->ReleaseStringUTFChars(env, jpath, path);
-	LOGD("clifd is %d\n",clifd);
+	ALOGD("clifd is %d\n",clifd);
 
 	return clifd;
 }
@@ -105,14 +105,14 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
 	const char *str;
 	jclass EventClass = (*env)->GetObjectClass(env, EventObj);
 	if (EventClass == NULL){
-		LOGD("Class not found!\n");
+		ALOGD("Class not found!\n");
 		return -1;
 	} 
 
 	// cmd
 	fid = (*env)->GetFieldID(env, EventClass, "cmd", "I");
 	if (fid == NULL ) {
-		LOGD("get cmd error!\n");
+		ALOGD("get cmd error!\n");
 	}
 	evt->cmd = (*env)->GetIntField(env, EventObj, fid);
 
@@ -126,8 +126,8 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
 	// finally write to socket..
 	int err = write(fd,(char*)evt,ssize);
 	if ( err < 1) 
-		LOGD("error with write,():%s, fd is %d\n", strerror(errno),fd);
-	LOGD("wrote  %d bytes on socket, fd %d\n",err, fd );
+		ALOGD("error with write,():%s, fd is %d\n", strerror(errno),fd);
+	ALOGD("wrote  %d bytes on socket, fd %d\n",err, fd );
 
 	CMD=evt->cmd;
 	free(evt);
@@ -136,7 +136,7 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
 		int ssize = sizeof(struct svmp_fbstream_init_t);
 		struct svmp_fbstream_init_t *fbinit = (struct svmp_fbstream_init_t *)malloc(ssize);
 		memset(fbinit,0,sizeof(struct svmp_fbstream_init_t));
-		LOGD("start command received  on  fd %d\n", fd );
+		ALOGD("start command received  on  fd %d\n", fd );
 		// Gdev
 //		fid = (*env)->GetFieldID(env, EventClass, "Gdev",
 //				"Ljava/lang/String;");
@@ -166,11 +166,11 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
 //		fbinit->audport = (*env)->GetIntField(env, EventObj, fid);
 //
 		// finally write to socket..
-		LOGD("fbinit IP:%s, vidport: %d\n command received fd %d\n", fbinit->IP,fbinit->vidport,fd );
+		ALOGD("fbinit IP:%s, vidport: %d\n command received fd %d\n", fbinit->IP,fbinit->vidport,fd );
 		int err = write(fd,(char*)fbinit,ssize);
 		if ( err < 1) 
-			LOGD("error with write,():%s, fd is %d\n", strerror(errno),fd);
-		LOGD("wrote  %d bytes on socket, fd %d\n",err, fd );
+			ALOGD("error with write,():%s, fd is %d\n", strerror(errno),fd);
+		ALOGD("wrote  %d bytes on socket, fd %d\n",err, fd );
 		free(fbinit);
 	}else if (CMD == PRINTSDP) {
 		// read results from FbStreamet and place in evt->SDP 
@@ -179,13 +179,13 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
 		// block until response
 		// read size of the string
 		int err = read(fd,&ssize,sizeof(int));
-		LOGD("sizeof SDP is %d\n", ssize);
+		ALOGD("sizeof SDP is %d\n", ssize);
 		buf = (char *)malloc(2*ssize);
 		err = 0;
 		do {
 			err += read(fd,(char*)buf+err,ssize);
 		}while(err < ssize);
-		LOGD("received size of %d, strlen of %d\n", err,strlen(buf));
+		ALOGD("received size of %d, strlen of %d\n", err,strlen(buf));
 
 		//err += read(fd,(char*)buf,ssize);
 		// copy to 
@@ -195,7 +195,7 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_FbStreamClientWrite
 		// make sure string is null terminated
 		buf[ssize]='\0';
 		jstr = (*env)->NewStringUTF(env, buf);
-		LOGD("SDP is %s\n", buf);
+		ALOGD("SDP is %s\n", buf);
 		(*env)->SetObjectField(env, EventObj, fid, jstr);
 		free(buf);
 	}
@@ -229,16 +229,16 @@ jint Java_org_mitre_svmp_events_BaseServer_InitSockClient( JNIEnv* env, jobject 
 		                      sizeof(serv_addr.sun_family);
 
 	if ((clifd = socket(AF_UNIX,SOCK_STREAM,0)) < 0){
-		LOGD("error opening socket :%s\n", strerror(errno));
+		ALOGD("error opening socket :%s\n", strerror(errno));
 		return -1;
 	}
 
 	if (connect(clifd, (struct sockaddr *) &serv_addr, servlen) < 0) {
-		LOGD("error with connect():%s\n", strerror(errno));
+		ALOGD("error with connect():%s\n", strerror(errno));
 		return -1;
         }
 	(*env)->ReleaseStringUTFChars(env, jpath, path);
-	LOGD("clifd is %d\n",clifd);
+	ALOGD("clifd is %d\n",clifd);
 
 	return clifd;
 }
@@ -258,7 +258,7 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_SockClientWrite
 	jfieldID fid;
 	jclass SensorClass = (*env)->GetObjectClass(env, SensorObj);
 	if (SensorClass == NULL){
-	         LOGD("Class not found!\n");
+	         ALOGD("Class not found!\n");
 	         return -1;
 	} 
 	jmethodID midGetAccuracy = (*env)->GetMethodID(env,SensorClass,"getAccuracy","()I");
@@ -267,7 +267,7 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_SockClientWrite
 	//accuracy
 	fid = (*env)->GetFieldID(env, SensorClass, "accuracy", "I");
 	if (fid == NULL ) {
-		LOGD("get accuracy error!\n");
+		ALOGD("get accuracy error!\n");
 	}
 	evt->accuracy = (*env)->GetIntField(env, SensorObj, fid);
 	// type
@@ -282,20 +282,20 @@ JNIEXPORT jint JNICALL Java_org_mitre_svmp_events_BaseServer_SockClientWrite
 	carr = (*env)->GetFloatArrayElements(env,jarr,NULL);
 	if (carr == NULL ){
 		// some error occured
-		LOGD("error accessing value array\n");
+		ALOGD("error accessing value array\n");
 		return 0;
 	}
 	evt->value[0] = carr[0];
 	evt->value[1] = carr[1];
 	evt->value[2] = carr[2];
 	(*env)->ReleaseFloatArrayElements(env, jarr,carr, 0);
-        //LOGD("Sending: type:%d,accuracy: %d,timestamp:%ld,value[0]%d,value[1]%d,value[2]%d\n",evt->type,evt->accuracy, evt->timestamp,evt->value[0],evt->value[1],evt->value[2]);
+        //ALOGD("Sending: type:%d,accuracy: %d,timestamp:%ld,value[0]%d,value[1]%d,value[2]%d\n",evt->type,evt->accuracy, evt->timestamp,evt->value[0],evt->value[1],evt->value[2]);
 
 	// finally write to socket..
 	int err = write(fd,(char*)evt,ssize);
 	if ( err < 1) 
-		LOGD("error with write,():%s, fd is %d\n", strerror(errno),fd);
-	//LOGD("wrote  %d bytes on socket, fd %d\n",err, fd );
+		ALOGD("error with write,():%s, fd is %d\n", strerror(errno),fd);
+	//ALOGD("wrote  %d bytes on socket, fd %d\n",err, fd );
 
 	free(evt);
 	return bytes;

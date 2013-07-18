@@ -15,6 +15,7 @@ limitations under the License.
 */
 package org.mitre.svmp.events;
 
+import android.util.Log;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +31,7 @@ import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
 import org.mitre.svmp.protocol.SVMPProtocol.VideoRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.TouchEvent;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
+import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 
 import org.mitre.svmp.events.FbStreamEventMessage;
 import org.mitre.svmp.events.FbStreamMessageRunnable;
@@ -142,8 +144,14 @@ public abstract class BaseServer implements Constants {
                         // use the thread pool to handle this
                         handleLocation(msg);
                         break;
+		    case VIDEO_STOP:
+			Log.e(TAG,"!!VIDEO_STOP request received!\n");
+			handleVideo(msg.getVideoRequest(),FbStreamEventMessage.STOP);
+			break;
+		    case VIDEO_START:
 		    case VIDEO_PARAMS:
-			handleVideo(msg.getVideoRequest());
+			Log.e(TAG,"VIDEO_START request received!\n");
+			handleVideo(msg.getVideoRequest(),FbStreamEventMessage.START);
 			break;
                     }
                 }
@@ -176,9 +184,20 @@ public abstract class BaseServer implements Constants {
         // this SensorEvent was sent from the client, let's pass it on to the Sensor Message Unix socket
         sensorMsgExecutor.execute(new SensorMessageRunnable(this, sockfd, event));
     }
-    private void handleVideo(final VideoRequest event) {
+    private void handleVideo(final VideoRequest event, int cmd) {
         // this VideoEvent was sent from the client, let's pass it on to the FBstream Message Unix socket
-        fbstreamMsgExecutor.execute(new FbStreamMessageRunnable(this, fbstrfd, event));
+        fbstreamMsgExecutor.execute(new FbStreamMessageRunnable(this, fbstrfd, event,cmd));
+	// send a response
+        try{
+		SVMPProtocol.Response.Builder msg = SVMPProtocol.Response.newBuilder();
+		if (cmd == FbStreamEventMessage.START )
+			msg.setType(ResponseType.VIDEOSTART);
+		else
+			msg.setType(ResponseType.VIDEOSTOP);
+		sendMessage(msg.build());
+        } catch (IOException ioe){
+		Utility.logError("Problem w/ response message:  " + ioe.getMessage());
+        }
     }
     public void handleIntent(final Request request){
         // this Intent was sent from the client, let's pass it on to the IntentHelper

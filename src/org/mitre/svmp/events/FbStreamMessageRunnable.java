@@ -26,17 +26,19 @@ public class FbStreamMessageRunnable implements Runnable
     private BaseServer server;
     private int sockfd;
     private VideoRequest event;
+    private int cmd;
 
-    FbStreamMessageRunnable(BaseServer server, int sockfd, VideoRequest event) 
+    FbStreamMessageRunnable(BaseServer server, int sockfd, VideoRequest event, int cmd)
     {
         this.server = server;
         this.sockfd = sockfd;
         this.event = event;
+	this.cmd = cmd;
     }
 
     public void run () {
         // construct SVMPSensorEventMessage
-	FbStreamEventMessage  message = Utility.toSVMPMessage(event);
+	FbStreamEventMessage  message = Utility.toSVMPMessage(event,cmd);
         // send the message to the Unix socket
         server.sendFbStreamEvent(sockfd, message);
     }

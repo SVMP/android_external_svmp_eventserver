@@ -11,7 +11,7 @@
   <property name="input" value="remote_events.jar" />
   <property name="jnisrc"  location="../../../out/target/product/svmp/system/lib/" />
   <property name="jni" value="libremote_events_jni.so" />
-  <property name="vm" value="mm160771-pc.mitre.org" />
+  <property name="vm" value="192.168.1.109" />
 
   <target name="init">
 	  <!-- Create the time stamp -->

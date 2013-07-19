@@ -33,6 +33,8 @@ import android.view.Surface;
 import android.graphics.Point;
 
 import java.io.IOException;
+import java.lang.Thread;
+import java.lang.InterruptedException;
 import org.mitre.svmp.protocol.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 
@@ -42,7 +44,7 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 public class EventServer extends BaseServer {
     private static final String TAG = "EVENTSERVER";
 
-    private IWindowManager windowManager;
+    private IWindowManager windowManager = null;
     private long lastDownTime;
     private final Point screenSize = new Point();
     private double xScaleFactor, yScaleFactor;
@@ -50,7 +52,15 @@ public class EventServer extends BaseServer {
 
     public EventServer() throws IOException {
         super(PROXY_PORT);
-        windowManager = IWindowManager.Stub.asInterface(ServiceManager.getService("window"));
+
+        while (windowManager == null) {
+            windowManager = IWindowManager.Stub.asInterface(ServiceManager.getService("window"));
+            try {
+              Thread.sleep(500);
+            } catch (InterruptedException e) {
+               // don't care
+            }
+        }
                        
         try{
           windowManager.getRealDisplaySize(screenSize);

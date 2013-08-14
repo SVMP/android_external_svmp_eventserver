@@ -52,7 +52,8 @@ public abstract class BaseServer implements Constants {
     private native int SockClientWrite(int fd,SVMPSensorEventMessage event);
     private native int SockClientClose(int fd); 
     private int sockfd;
-    // fbstream
+
+    // fbstream (v2)
     private int fbstrfd;
     private native int InitFbStreamClient(String path);
     private native int FbStreamClientWrite(int fd,FbStreamEventMessage event);
@@ -63,6 +64,7 @@ public abstract class BaseServer implements Constants {
     private ExecutorService fbstreamMsgExecutor;
     private NettyServer intentServer;
     private NettyServer locationServer;
+    private NettyServer webrtcServer;
     private final Object sendMessageLock = new Object();
 
     public BaseServer(final int port) throws IOException {
@@ -100,6 +102,9 @@ public abstract class BaseServer implements Constants {
         // start a new thread to receive Location responses from the LocationHelper
         locationServer = new NettyServer(this, NETTY_LOCATION_PORT);
         locationServer.start();
+        
+        webrtcServer = new NettyServer(this, NETTY_WEBRTC_PORT);
+        webrtcServer.start();
     }
 
     protected void run() {
@@ -144,15 +149,20 @@ public abstract class BaseServer implements Constants {
                         // use the thread pool to handle this
                         handleLocation(msg);
                         break;
-		    case VIDEO_STOP:
-			Log.e(TAG,"!!VIDEO_STOP request received!\n");
-			handleVideo(msg.getVideoRequest(),FbStreamEventMessage.STOP);
-			break;
-		    case VIDEO_START:
-		    case VIDEO_PARAMS:
-			Log.e(TAG,"VIDEO_START request received!\n");
-			handleVideo(msg.getVideoRequest(),FbStreamEventMessage.START);
-			break;
+                    case VIDEO_STOP:
+                        Log.e(TAG,"!!VIDEO_STOP request received!\n");
+                        handleVideo(msg.getVideoRequest(),FbStreamEventMessage.STOP);
+                        break;
+                    case VIDEO_START:
+                    case VIDEO_PARAMS:
+                        Log.e(TAG,"VIDEO_START request received!\n");
+                        handleVideo(msg.getVideoRequest(),FbStreamEventMessage.START);
+                        break;
+                    case WEBRTC:
+                        handleWebRTC(msg);
+                        break;
+                    default:
+                        break;
                     }
                 }
             } catch (Exception e) {
@@ -206,6 +216,10 @@ public abstract class BaseServer implements Constants {
     public void handleLocation(final Request request){
         // this LocationUpdate was sent from the client, let's pass it on to the LocationHelper
         locationServer.sendMessage(request);
+    }
+    
+    public void handleWebRTC(final Request request) {
+        webrtcServer.sendMessage(request);
     }
 
     // called from the SensorMessageRunnable

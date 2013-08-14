@@ -20,6 +20,7 @@ package org.mitre.svmp.events;
  */
 public interface Constants {
     public static final int PROXY_PORT = 8001;
+    public static final int NETTY_WEBRTC_PORT = 7675;
     public static final int NETTY_INTENT_PORT = 7676;
     public static final int NETTY_LOCATION_PORT = 7677;
 }

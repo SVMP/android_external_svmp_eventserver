@@ -16,6 +16,7 @@ limitations under the License.
 package org.mitre.svmp.events;
 
 import android.util.Log;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,9 +31,11 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
 import org.mitre.svmp.protocol.SVMPProtocol.VideoRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.TouchEvent;
+import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
+import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
-
+import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
 import org.mitre.svmp.events.FbStreamEventMessage;
 import org.mitre.svmp.events.FbStreamMessageRunnable;
 /**
@@ -169,6 +172,11 @@ public abstract class BaseServer implements Constants {
                 Utility.logError("Error on socket: " + e.getMessage());
                 e.printStackTrace();
             } finally {
+                // send a final BYE to fbstream via the webrtc helper
+                handleWebRTC(Request.newBuilder().setType(RequestType.WEBRTC)
+                    .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE))
+                    .build());
+                
                 try {
                     proxyIn.close();
                     proxyOut.close();

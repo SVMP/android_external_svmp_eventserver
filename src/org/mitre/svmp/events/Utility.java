@@ -15,6 +15,7 @@
  */
 package org.mitre.svmp.events;
 
+import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
 import org.mitre.svmp.protocol.SVMPProtocol.VideoRequest;
@@ -47,14 +48,5 @@ public class Utility {
 		bitrate = Request.getBitrate();
         return new FbStreamEventMessage(cmd,IP,port);
 
-    }
-
-    public static void logError(final String message) {
-        //Log.e(TAG, message);
-        System.err.println(message);
-    }
-    public static void logInfo(final String message) {
-        //Log.i(TAG, message);
-        System.out.println(message);
     }
 }

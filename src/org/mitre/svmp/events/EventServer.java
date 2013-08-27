@@ -15,19 +15,15 @@ limitations under the License.
 */
 package org.mitre.svmp.events;
 
-
 import android.content.Context;
 import android.os.IPowerManager;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.IWindowManager;
-import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.WindowManagerImpl;
-//import android.hardware.input.InputManager;
 import android.view.InputDevice;
 import android.view.Surface;
 import android.graphics.Point;
@@ -40,28 +36,27 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
  * @author Dave Bryson
  */
 public class EventServer extends BaseServer {
-    private static final String TAG = "EVENTSERVER";
+    private static final String TAG = EventServer.class.getName();
 
     private IWindowManager windowManager;
     private long lastDownTime;
     private final Point screenSize = new Point();
     private double xScaleFactor, yScaleFactor;
 
-
-    public EventServer() throws IOException {
-        super(PROXY_PORT);
+    public EventServer(Context context) throws IOException {
+        super(context);
         windowManager = IWindowManager.Stub.asInterface(ServiceManager.getService("window"));
-                       
+
         try{
           windowManager.getRealDisplaySize(screenSize);
         } catch (RemoteException re){
-          Utility.logError("Error getting display size: " + re.getMessage());
+          Log.e(TAG, "Error getting display size: " + re.getMessage());
         }
-        
-        Utility.logInfo("Display Size: " + screenSize.x + " , " + screenSize.y);
-         
+
+        Log.d(TAG, "Display Size: " + screenSize.x + " , " + screenSize.y);
+
         start();
-        wake(); // TODO: it looks like this should happen before start()...?
+        wake();
     }
 
     @Override
@@ -75,9 +70,9 @@ public class EventServer extends BaseServer {
         	msg.setType(ResponseType.SCREENINFO);
         	sendMessage(msg.build());
         	
-        	Utility.logInfo("Sent screen info response: " + screenSize.x + "," + screenSize.y);
+        	Log.d(TAG, "Sent screen info response: " + screenSize.x + "," + screenSize.y);
         } catch (IOException ioe){
-            Utility.logError("Problem handling message:  " + ioe.getMessage());
+            Log.e(TAG, "Problem handling message:  " + ioe.getMessage());
         }
     }
 
@@ -105,7 +100,7 @@ public class EventServer extends BaseServer {
             try{
                 rotation = windowManager.getRotation();
             } catch (RemoteException re){
-                Utility.logError("Error getting display size: " + re.getMessage());
+                Log.e(TAG, "Error getting display size: " + re.getMessage());
             }
             switch (rotation) {
                 case Surface.ROTATION_0:
@@ -141,7 +136,7 @@ public class EventServer extends BaseServer {
         MotionEvent me = MotionEvent.obtain(lastDownTime, now, event.getAction(), pointerSize, props, coords,
                                             0, 0, 1, 1, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
        try {
-    	  //Utility.logInfo("injecting touch event");
+    	  //Log.d(TAG, "injecting touch event");
           windowManager.injectPointerEvent(me,false);
           //InputManager.getInstance().injectInputEvent(me,InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT); 
        } catch (Exception e) {
@@ -166,23 +161,5 @@ public class EventServer extends BaseServer {
             return false;
         }
         return true;
-    }
-
-    /*
-    @Override
-    public void logError(final String message) {
-        //Log.e(TAG, message);
-    	System.err.println(message);
-    }
-
-    @Override
-    public void logInfo(final String message) {
-        //Log.i(TAG, message);
-    	System.out.println(message);
-    }
-    */
-
-    public static void main(String[] args) throws IOException {
-        new EventServer();
     }
 }

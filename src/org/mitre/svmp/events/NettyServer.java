@@ -15,6 +15,7 @@
  */
 package org.mitre.svmp.events;
 
+import android.util.Log;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
@@ -26,6 +27,8 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
  * @author Joe Portner
  */
 public class NettyServer extends Thread {
+    private static final String TAG = NettyServer.class.getName();
+
     protected final BaseServer baseServer; // passed from BaseServer
     private final int port;
     private ChannelHandlerContext ctx;
@@ -36,7 +39,7 @@ public class NettyServer extends Thread {
     }
 
     public void run() {
-        Utility.logInfo("Netty receiver starting up... (port " + this.port + ")");
+        Log.d(TAG, "Netty receiver starting up... (port " + this.port + ")");
 
         // create the Boss EventLoopGroup and one Worker EventLoopGroup (resource intensive)
         EventLoopGroup bossGroup = new NioEventLoopGroup();
@@ -54,7 +57,7 @@ public class NettyServer extends Thread {
             // (doesn't stop until the thread has been interrupted)
             b.bind(port).sync().channel().closeFuture().sync();
         } catch( InterruptedException ie ) {
-            Utility.logInfo("Netty receiver shutting down... (port " + this.port + ")");
+            Log.d(TAG, "Netty receiver shutting down... (port " + this.port + ")");
         } finally {
             // Free resources from both EventLoopGroups
             bossGroup.shutdownGracefully();
@@ -71,9 +74,9 @@ public class NettyServer extends Thread {
             if( this.ctx != null )
                 this.ctx.channel().write(request);
             else
-                Utility.logInfo("Netty server doesn't have a connected client");
+                Log.d(TAG, "Netty server doesn't have a connected client");
         } catch( Exception e ) {
-            Utility.logError("Netty server sendMessage failed: " + e.getMessage());
+            Log.e(TAG, "Netty server sendMessage failed: " + e.getMessage());
         }
     }
 }

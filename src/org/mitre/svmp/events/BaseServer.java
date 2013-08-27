@@ -15,7 +15,15 @@ limitations under the License.
 */
 package org.mitre.svmp.events;
 
+import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
+import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.*;
+import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
+import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
+import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
+import org.mitre.svmp.protocol.SVMPSensorEventMessage;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,19 +33,6 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.mitre.svmp.protocol.SVMPProtocol;
-import org.mitre.svmp.protocol.SVMPProtocol.Request;
-import org.mitre.svmp.protocol.SVMPProtocol.Response;
-import org.mitre.svmp.protocol.SVMPProtocol.SensorEvent;
-import org.mitre.svmp.protocol.SVMPProtocol.VideoRequest;
-import org.mitre.svmp.protocol.SVMPProtocol.TouchEvent;
-import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
-import org.mitre.svmp.protocol.SVMPSensorEventMessage;
-import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
-import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
-import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
-import org.mitre.svmp.events.FbStreamEventMessage;
-import org.mitre.svmp.events.FbStreamMessageRunnable;
 /**
  * Base, single-threaded, 1 socket at a time, TCP Server.  The server uses a queue to process
  * messages.
@@ -49,7 +44,7 @@ public abstract class BaseServer implements Constants {
     private InputStream proxyIn = null;
     private int proxyPort;
     private static final int BUFFER_SIZE = 8 * 1024;
-    private static final String TAG = "BASE-EVENTSERVER";
+    private static final String TAG = BaseServer.class.getName();
     
     private native int InitSockClient(String path);
     private native int SockClientWrite(int fd,SVMPSensorEventMessage event);
@@ -60,9 +55,10 @@ public abstract class BaseServer implements Constants {
     private int fbstrfd;
     private native int InitFbStreamClient(String path);
     private native int FbStreamClientWrite(int fd,FbStreamEventMessage event);
-    private native int FbStreamClientClose(int fd); 
+    private native int FbStreamClientClose(int fd);
 
 
+    private Context context;
     private ExecutorService sensorMsgExecutor;
     private ExecutorService fbstreamMsgExecutor;
     private NettyServer intentServer;
@@ -70,12 +66,13 @@ public abstract class BaseServer implements Constants {
     private NettyServer webrtcServer;
     private final Object sendMessageLock = new Object();
 
-    public BaseServer(final int port) throws IOException {
+    public BaseServer(Context context) throws IOException {
+        this.context = context;
         sockfd = InitSockClient("/dev/socket/svmp_sensors");
-        Utility.logInfo("InitSockClient returned " + sockfd);
-        this.proxyPort = port;
-	fbstrfd = InitFbStreamClient("/dev/socket/fbstr_command");
-        Utility.logInfo("InitFbStreamClient returned " + fbstrfd);
+        Log.d(TAG, "InitSockClient returned " + sockfd);
+        this.proxyPort = PROXY_PORT;
+//        fbstrfd = InitFbStreamClient("/dev/socket/fbstr_command");
+//        Log.d(TAG, "InitFbStreamClient returned " + fbstrfd);
     }
     
     static {
@@ -93,7 +90,14 @@ public abstract class BaseServer implements Constants {
         startNettyServers();
 
         this.proxySocket = new ServerSocket(proxyPort);
-        Utility.logInfo("Event server listening on proxyPort " + proxyPort);
+        Log.d(TAG, "Event server listening on proxyPort " + proxyPort);
+
+        // Now that we're done booting, send a broadcast to start helper services
+        Intent intent = new Intent();
+        intent.setAction("org.mitre.svmp.action.BOOT_COMPLETED");
+        // only BroadcastReceivers with the appropriate permission can receive this broadcast
+        context.sendBroadcast(intent, "org.mitre.svmp.permission.RECEIVE_BOOT_COMPLETED");
+
         this.run();
     }
 
@@ -115,11 +119,11 @@ public abstract class BaseServer implements Constants {
             Socket socket = null;
             try {
                 socket = proxySocket.accept();
-                Utility.logInfo("Socket connected");
+                Log.d(TAG, "Socket connected");
                 proxyOut = socket.getOutputStream();
                 proxyIn = socket.getInputStream();
             } catch (IOException e) {
-                Utility.logError("Problem accepting socket: " + e.getMessage());
+                Log.e(TAG, "Problem accepting socket: " + e.getMessage());
             }
 
             /**
@@ -153,12 +157,12 @@ public abstract class BaseServer implements Constants {
                         handleLocation(msg);
                         break;
                     case VIDEO_STOP:
-                        Log.e(TAG,"!!VIDEO_STOP request received!\n");
+                        Log.d(TAG,"!!VIDEO_STOP request received!\n");
                         handleVideo(msg.getVideoRequest(),FbStreamEventMessage.STOP);
                         break;
                     case VIDEO_START:
                     case VIDEO_PARAMS:
-                        Log.e(TAG,"VIDEO_START request received!\n");
+                        Log.d(TAG,"VIDEO_START request received!\n");
                         handleVideo(msg.getVideoRequest(),FbStreamEventMessage.START);
                         break;
                     case WEBRTC:
@@ -169,7 +173,7 @@ public abstract class BaseServer implements Constants {
                     }
                 }
             } catch (Exception e) {
-                Utility.logError("Error on socket: " + e.getMessage());
+                Log.e(TAG, "Error on socket: " + e.getMessage());
                 e.printStackTrace();
             } finally {
                 // send a final BYE to fbstream via the webrtc helper
@@ -214,7 +218,7 @@ public abstract class BaseServer implements Constants {
 			msg.setType(ResponseType.VIDEOSTOP);
 		sendMessage(msg.build());
         } catch (IOException ioe){
-		Utility.logError("Problem w/ response message:  " + ioe.getMessage());
+            Log.e(TAG, "Problem w/ response message:  " + ioe.getMessage());
         }
     }
     public void handleIntent(final Request request){
@@ -240,8 +244,4 @@ public abstract class BaseServer implements Constants {
         // send message
         FbStreamClientWrite(sockfd, message);
     }
-    /*
-    public abstract void logError(final String message);
-    public abstract void logInfo(final String message);
-    */
 }

@@ -15,6 +15,7 @@
  */
 package org.mitre.svmp.events;
 
+import android.util.Log;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.MessageList;
@@ -51,8 +52,7 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
                 nettyServer.baseServer.sendMessage(response);
 
             // print output
-            //Log.e(TAG, "Received Response: " + response.toString());
-            Utility.logError(TAG + ": Received Response: " + response.toString());
+            Log.d(TAG, ": Received Response: " + response.toString());
         }
 
         msgs.recycle();
@@ -60,8 +60,7 @@ public class NettyServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        //Log.e(TAG, "Unexpected exception from downstream: " + cause);
-        Utility.logError(TAG + ": Unexpected exception from downstream: " + cause);
+        Log.e(TAG, ": Unexpected exception from downstream: " + cause);
         ctx.close();
     }
 }

@@ -23,4 +23,6 @@ public interface Constants {
     public static final int NETTY_WEBRTC_PORT = 7675;
     public static final int NETTY_INTENT_PORT = 7676;
     public static final int NETTY_LOCATION_PORT = 7677;
+
+    public static final String ROTATION_CHANGED_ACTION = "org.mitre.svmp.action.ROTATION_CHANGED";
 }

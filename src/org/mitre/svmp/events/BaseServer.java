@@ -168,6 +168,8 @@ public abstract class BaseServer implements Constants {
                     case WEBRTC:
                         handleWebRTC(msg);
                         break;
+                    case ROTATION_INFO:
+                        handleRotationInfo(msg);
                     default:
                         break;
                     }
@@ -232,6 +234,14 @@ public abstract class BaseServer implements Constants {
     
     public void handleWebRTC(final Request request) {
         webrtcServer.sendMessage(request);
+    }
+
+    public void handleRotationInfo(final Request request) {
+        RotationInfo rotationInfo = request.getRotationInfo();
+        int rotation = rotationInfo.getRotation(); // get rotation value from protobuf
+        Intent intent = new Intent(ROTATION_CHANGED_ACTION); // set action (protected system broadcast)
+        intent.putExtra("rotation", rotation); // add rotation value to intent
+        context.sendBroadcast(intent); // send broadcast
     }
 
     // called from the SensorMessageRunnable

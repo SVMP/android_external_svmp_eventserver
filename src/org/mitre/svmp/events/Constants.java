@@ -22,7 +22,8 @@ public interface Constants {
     public static final int PROXY_PORT = 8001;
     public static final int NETTY_WEBRTC_PORT = 7675;
     public static final int NETTY_INTENT_PORT = 7676;
-    public static final int NETTY_LOCATION_PORT = 7677;
 
     public static final String ROTATION_CHANGED_ACTION = "org.mitre.svmp.action.ROTATION_CHANGED";
+    public static final String LOCATION_SUBSCRIBE_ACTION = "org.mitre.svmp.action.LOCATION_SUBSCRIBE";
+    public static final String LOCATION_UNSUBSCRIBE_ACTION = "org.mitre.svmp.action.LOCATION_UNSUBSCRIBE";
 }

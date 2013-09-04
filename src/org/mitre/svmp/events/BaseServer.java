@@ -17,6 +17,7 @@ package org.mitre.svmp.events;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
@@ -59,10 +60,10 @@ public abstract class BaseServer implements Constants {
 
 
     private Context context;
+    private LocationHandler locationHandler;
     private ExecutorService sensorMsgExecutor;
     private ExecutorService fbstreamMsgExecutor;
     private NettyServer intentServer;
-    private NettyServer locationServer;
     private NettyServer webrtcServer;
     private final Object sendMessageLock = new Object();
 
@@ -80,6 +81,9 @@ public abstract class BaseServer implements Constants {
     }
 
     public void start() throws IOException {
+        // start receiving location broadcast messages
+        locationHandler = new LocationHandler(this);
+
         // We create a SingleThreadExecutor because it executes sequentially
         // this guarantees that sensor event messages will be sent in order
         sensorMsgExecutor = Executors.newSingleThreadExecutor();
@@ -105,10 +109,6 @@ public abstract class BaseServer implements Constants {
         // start a new thread to receive Intent responses from the IntentHelper
         intentServer = new NettyServer(this, NETTY_INTENT_PORT);
         intentServer.start();
-
-        // start a new thread to receive Location responses from the LocationHelper
-        locationServer = new NettyServer(this, NETTY_LOCATION_PORT);
-        locationServer.start();
         
         webrtcServer = new NettyServer(this, NETTY_WEBRTC_PORT);
         webrtcServer.start();
@@ -136,7 +136,10 @@ public abstract class BaseServer implements Constants {
                 while (socket.isConnected()) {
                     SVMPProtocol.Request msg = SVMPProtocol.Request.parseDelimitedFrom(proxyIn);
                     //logInfo("Received message " + msg.getType().name());
-                    
+
+                    if( msg == null )
+                        continue;
+
                     switch(msg.getType()) {
                     case SCREENINFO:
                     	handleScreenInfo(msg);
@@ -154,7 +157,7 @@ public abstract class BaseServer implements Constants {
                         break;
                     case LOCATION:
                         // use the thread pool to handle this
-                        handleLocation(msg);
+                        locationHandler.handleMessage(msg);
                         break;
                     case VIDEO_STOP:
                         Log.d(TAG,"!!VIDEO_STOP request received!\n");
@@ -201,6 +204,10 @@ public abstract class BaseServer implements Constants {
         }
     }
 
+    protected Context getContext() {
+        return context;
+    }
+
     public abstract void handleScreenInfo(final Request message);
     public abstract void handleTouch(final TouchEvent event);
 
@@ -226,10 +233,6 @@ public abstract class BaseServer implements Constants {
     public void handleIntent(final Request request){
         // this Intent was sent from the client, let's pass it on to the IntentHelper
         intentServer.sendMessage(request);
-    }
-    public void handleLocation(final Request request){
-        // this LocationUpdate was sent from the client, let's pass it on to the LocationHelper
-        locationServer.sendMessage(request);
     }
     
     public void handleWebRTC(final Request request) {

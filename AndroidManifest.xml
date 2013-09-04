@@ -22,6 +22,10 @@
                 android:label="BOOT_COMPLETED"
                 android:protectionLevel="signatureOrSystem" />
 
+    <permission android:name="org.mitre.svmp.permission.RECEIVE_LOCATION_ACTIONS"
+                android:label="LOCATION_ACTIONS"
+                android:protectionLevel="signatureOrSystem" />
+
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
@@ -30,6 +34,11 @@
 
     <!-- we use this to inject sensor and touch events -->
     <uses-permission android:name="android.permission.INJECT_EVENTS"/>
+
+    <!-- we use these to inject Location events -->
+    <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_LOCATION_ACTIONS"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION"/>
 
     <application android:icon="@drawable/color_icon" android:label="@string/app_name" android:persistent="true">
         <service android:name=".BackgroundService"/>

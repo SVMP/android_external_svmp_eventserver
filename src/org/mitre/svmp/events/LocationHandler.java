@@ -15,36 +15,28 @@
  */
 package org.mitre.svmp.events;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 
-import java.io.IOException;
-
 /**
+ * C->S: Receives Location provider info/status, enabled, and updates from th, and sends them to the LocationManager
+ * S->C: Receives intercepted Location requests, converts them to Protobuf messages, and sends them back to the client
  * @author Joe Portner
  */
-public class LocationHandler extends BroadcastReceiver implements Constants{
+public class LocationHandler extends BaseHandler {
     private static final String TAG = LocationHandler.class.getName();
 
-    private BaseServer baseServer;
     private LocationManager locationManager;
 
     public LocationHandler(BaseServer baseServer) {
-        super();
-        this.baseServer = baseServer;
-        this.locationManager = (LocationManager) baseServer.getContext().getSystemService(Context.LOCATION_SERVICE);
+        super(baseServer, LOCATION_SUBSCRIBE_ACTION, LOCATION_UNSUBSCRIBE_ACTION);
 
-        // register this BroadcastReceiver for the intent actions that we want
-        IntentFilter intentFilter = new IntentFilter(LOCATION_SUBSCRIBE_ACTION);
-        intentFilter.addAction(LOCATION_UNSUBSCRIBE_ACTION);
-        baseServer.getContext().registerReceiver(this, intentFilter);
+        this.locationManager = (LocationManager) baseServer.getContext().getSystemService(Context.LOCATION_SERVICE);
     }
 
     // receive messages from the LocationManager service, pass them back to the client
@@ -255,16 +247,5 @@ public class LocationHandler extends BroadcastReceiver implements Constants{
         return provider != null
                 && provider.length() > 0
                 && !provider.equals(LocationManager.PASSIVE_PROVIDER);
-    }
-
-    // send a Response to the EventServer
-    private void sendMessage(Response response) {
-        if( baseServer != null ) {
-            try {
-                baseServer.sendMessage(response);
-            } catch( IOException e ) {
-                Log.e(TAG, "Error sending message to client: " + e.getMessage());
-            }
-        }
     }
 }

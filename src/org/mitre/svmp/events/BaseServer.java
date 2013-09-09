@@ -61,9 +61,10 @@ public abstract class BaseServer implements Constants {
 
     private Context context;
     private LocationHandler locationHandler;
+    private IntentHandler intentHandler;
+    private NotificationHandler notificationHandler;
     private ExecutorService sensorMsgExecutor;
     private ExecutorService fbstreamMsgExecutor;
-    private NettyServer intentServer;
     private NettyServer webrtcServer;
     private final Object sendMessageLock = new Object();
 
@@ -83,6 +84,12 @@ public abstract class BaseServer implements Constants {
     public void start() throws IOException {
         // start receiving location broadcast messages
         locationHandler = new LocationHandler(this);
+
+        // start receiving intent intercept messages
+        intentHandler = new IntentHandler(this);
+
+        // start receiving notification intercept messages
+        notificationHandler = new NotificationHandler(this);
 
         // We create a SingleThreadExecutor because it executes sequentially
         // this guarantees that sensor event messages will be sent in order
@@ -107,9 +114,6 @@ public abstract class BaseServer implements Constants {
 
     public void startNettyServers() {
         // start a new thread to receive Intent responses from the IntentHelper
-        intentServer = new NettyServer(this, NETTY_INTENT_PORT);
-        intentServer.start();
-        
         webrtcServer = new NettyServer(this, NETTY_WEBRTC_PORT);
         webrtcServer.start();
     }
@@ -152,11 +156,9 @@ public abstract class BaseServer implements Constants {
                     	handleSensor(msg.getSensor());
                     	break;
                     case INTENT:
-                        // use the thread pool to handle this
-                        handleIntent(msg);
+                        intentHandler.handleMessage(msg);
                         break;
                     case LOCATION:
-                        // use the thread pool to handle this
                         locationHandler.handleMessage(msg);
                         break;
                     case VIDEO_STOP:
@@ -229,10 +231,6 @@ public abstract class BaseServer implements Constants {
         } catch (IOException ioe){
             Log.e(TAG, "Problem w/ response message:  " + ioe.getMessage());
         }
-    }
-    public void handleIntent(final Request request){
-        // this Intent was sent from the client, let's pass it on to the IntentHelper
-        intentServer.sendMessage(request);
     }
     
     public void handleWebRTC(final Request request) {

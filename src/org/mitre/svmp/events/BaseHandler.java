@@ -1,0 +1,66 @@
+/*
+ Copyright 2013 The MITRE Corporation, All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this work except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+package org.mitre.svmp.events;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.location.Location;
+import android.location.LocationManager;
+import android.os.Bundle;
+import android.util.Log;
+import org.mitre.svmp.protocol.SVMPProtocol.*;
+
+import java.io.IOException;
+
+/**
+ * @author Joe Portner
+ */
+public class BaseHandler extends BroadcastReceiver implements Constants{
+    private static final String TAG = BaseHandler.class.getName();
+
+    protected BaseServer baseServer;
+
+    public BaseHandler(BaseServer baseServer, String... filterActions) {
+        super();
+        this.baseServer = baseServer;
+
+        if( filterActions.length > 0 ) {
+            // register this BroadcastReceiver for the intent actions that we want
+            IntentFilter intentFilter = new IntentFilter();
+            for( int i = 0; i < filterActions.length; i++ )
+                intentFilter.addAction(filterActions[i]);
+            baseServer.getContext().registerReceiver(this, intentFilter);
+        }
+    }
+
+    // receive message from Android components, pass them back to the client
+    public void onReceive(Context context, Intent intent) {
+        // override in child class
+    }
+
+    // send a Response to the EventServer
+    protected void sendMessage(Response response) {
+        if( baseServer != null ) {
+            try {
+                baseServer.sendMessage(response);
+            } catch( IOException e ) {
+                Log.e(TAG, "Error sending message to client: " + e.getMessage());
+            }
+        }
+    }
+}

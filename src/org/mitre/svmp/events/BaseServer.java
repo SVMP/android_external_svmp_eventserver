@@ -142,7 +142,7 @@ public abstract class BaseServer implements Constants {
                     //logInfo("Received message " + msg.getType().name());
 
                     if( msg == null )
-                        continue;
+                        break;
 
                     switch(msg.getType()) {
                     case SCREENINFO:

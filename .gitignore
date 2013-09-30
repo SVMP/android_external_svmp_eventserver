@@ -4,3 +4,6 @@ out
 gen
 *.iml
 project.properties
+.classpath
+.project
+bin/

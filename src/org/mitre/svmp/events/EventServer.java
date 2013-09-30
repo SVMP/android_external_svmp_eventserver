@@ -67,7 +67,7 @@ public class EventServer extends BaseServer {
 
     @Override
     public void handleScreenInfo(final SVMPProtocol.Request message){
-        try{
+//        try{
         	SVMPProtocol.Response.Builder msg = SVMPProtocol.Response.newBuilder();
         	SVMPProtocol.ScreenInfo.Builder scr = SVMPProtocol.ScreenInfo.newBuilder();
         	scr.setX(screenSize.x);
@@ -77,9 +77,9 @@ public class EventServer extends BaseServer {
         	sendMessage(msg.build());
         	
         	Log.d(TAG, "Sent screen info response: " + screenSize.x + "," + screenSize.y);
-        } catch (IOException ioe){
-            Log.e(TAG, "Problem handling message:  " + ioe.getMessage());
-        }
+//        } catch (IOException ioe){
+//            Log.e(TAG, "Problem handling message:  " + ioe.getMessage());
+//        }
     }
 
     @Override

@@ -60,20 +60,11 @@ public abstract class BaseServer implements Constants {
     private native int SockClientClose(int fd); 
     private int sockfd;
 
-    // fbstream (v2)
-    private int fbstrfd;
-    private native int InitFbStreamClient(String path);
-    private native int FbStreamClientWrite(int fd,FbStreamEventMessage event);
-    private native int FbStreamClientClose(int fd);
-
-
     private Context context;
     private LocationHandler locationHandler;
     private IntentHandler intentHandler;
     private NotificationHandler notificationHandler;
     private ExecutorService sensorMsgExecutor;
-    private ExecutorService fbstreamMsgExecutor;
-    private NettyServer webrtcServer;
     private final Object sendMessageLock = new Object();
 
     public BaseServer(Context context) throws IOException {
@@ -81,8 +72,6 @@ public abstract class BaseServer implements Constants {
         sockfd = InitSockClient("/dev/socket/svmp_sensors");
         Log.d(TAG, "InitSockClient returned " + sockfd);
         this.proxyPort = PROXY_PORT;
-//        fbstrfd = InitFbStreamClient("/dev/socket/fbstr_command");
-//        Log.d(TAG, "InitFbStreamClient returned " + fbstrfd);
     }
     
     static {
@@ -98,15 +87,10 @@ public abstract class BaseServer implements Constants {
 
         // start receiving notification intercept messages
         notificationHandler = new NotificationHandler(this);
-
+        
         // We create a SingleThreadExecutor because it executes sequentially
         // this guarantees that sensor event messages will be sent in order
         sensorMsgExecutor = Executors.newSingleThreadExecutor();
-
-        fbstreamMsgExecutor = Executors.newSingleThreadExecutor();
-
-        // start Netty receivers for sending/receiving Intent and Location messages
-        startNettyServers();
 
         this.proxySocket = new ServerSocket(proxyPort);
         Log.d(TAG, "Event server listening on proxyPort " + proxyPort);
@@ -120,12 +104,6 @@ public abstract class BaseServer implements Constants {
         this.run();
     }
 
-    public void startNettyServers() {
-        // start a new thread to receive Intent responses from the IntentHelper
-        webrtcServer = new NettyServer(this, NETTY_WEBRTC_PORT);
-        webrtcServer.start();
-    }
-
     protected void run() {
         while (true) {
             Socket socket = null;
@@ -137,6 +115,8 @@ public abstract class BaseServer implements Constants {
             } catch (IOException e) {
                 Log.e(TAG, "Problem accepting socket: " + e.getMessage());
             }
+            
+            WebrtcHandler webrtcHandler = null;
 
             /**
              * We only accept 1 socket at a time.  When we get a connection we
@@ -169,17 +149,11 @@ public abstract class BaseServer implements Constants {
                     case LOCATION:
                         locationHandler.handleMessage(msg);
                         break;
-                    case VIDEO_STOP:
-                        Log.d(TAG,"!!VIDEO_STOP request received!\n");
-                        handleVideo(msg.getVideoRequest(),FbStreamEventMessage.STOP);
-                        break;
-                    case VIDEO_START:
                     case VIDEO_PARAMS:
-                        Log.d(TAG,"VIDEO_START request received!\n");
-                        handleVideo(msg.getVideoRequest(),FbStreamEventMessage.START);
+                        webrtcHandler = new WebrtcHandler(this, msg.getVideoInfo());
                         break;
                     case WEBRTC:
-                        handleWebRTC(msg);
+                        webrtcHandler.handleMessage(msg);
                         break;
                     case ROTATION_INFO:
                         handleRotationInfo(msg);
@@ -196,9 +170,9 @@ public abstract class BaseServer implements Constants {
                 e.printStackTrace();
             } finally {
                 // send a final BYE to fbstream via the webrtc helper
-                handleWebRTC(Request.newBuilder().setType(RequestType.WEBRTC)
-                    .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE))
-                    .build());
+//                handleWebRTC(Request.newBuilder().setType(RequestType.WEBRTC)
+//                    .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE))
+//                    .build());
                 
                 try {
                     proxyIn.close();
@@ -210,11 +184,21 @@ public abstract class BaseServer implements Constants {
             }
         }
     }
+    
+    private void disconnet() {
+        
+    }
 
-    protected void sendMessage(Response message) throws IOException {
+    protected void sendMessage(Response message) {
         // use synchronized statement to ensure only one message gets sent at a time
         synchronized(sendMessageLock) {
-    	    message.writeDelimitedTo(proxyOut);
+    	    try {
+                message.writeDelimitedTo(proxyOut);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                Log.e(TAG, "Socket write error: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
 
@@ -228,25 +212,6 @@ public abstract class BaseServer implements Constants {
     private void handleSensor(final SensorEvent event) {
         // this SensorEvent was sent from the client, let's pass it on to the Sensor Message Unix socket
         sensorMsgExecutor.execute(new SensorMessageRunnable(this, sockfd, event));
-    }
-    private void handleVideo(final VideoRequest event, int cmd) {
-        // this VideoEvent was sent from the client, let's pass it on to the FBstream Message Unix socket
-        fbstreamMsgExecutor.execute(new FbStreamMessageRunnable(this, fbstrfd, event,cmd));
-	// send a response
-        try{
-		SVMPProtocol.Response.Builder msg = SVMPProtocol.Response.newBuilder();
-		if (cmd == FbStreamEventMessage.START )
-			msg.setType(ResponseType.VIDEOSTART);
-		else
-			msg.setType(ResponseType.VIDEOSTOP);
-		sendMessage(msg.build());
-        } catch (IOException ioe){
-            Log.e(TAG, "Problem w/ response message:  " + ioe.getMessage());
-        }
-    }
-    
-    public void handleWebRTC(final Request request) {
-        webrtcServer.sendMessage(request);
     }
 
     public void handleRotationInfo(final Request request) {
@@ -270,11 +235,11 @@ public abstract class BaseServer implements Constants {
             Response response = builder.build();
 
             // send the response to the client
-            try {
+            //try {
                 sendMessage(response);
-            } catch (IOException e) {
+            //} catch (IOException e) {
                 // don't care
-            }
+            //}
         }
     }
 
@@ -283,9 +248,5 @@ public abstract class BaseServer implements Constants {
         // send message
         SockClientWrite(sockfd, message);
     }
-    // called from the FbStreamMessageRunnable
-    public void sendFbStreamEvent(int sockfd, FbStreamEventMessage message) {
-        // send message
-        FbStreamClientWrite(sockfd, message);
-    }
+
 }

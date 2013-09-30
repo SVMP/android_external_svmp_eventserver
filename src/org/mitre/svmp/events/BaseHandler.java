@@ -56,11 +56,7 @@ public class BaseHandler extends BroadcastReceiver implements Constants{
     // send a Response to the EventServer
     protected void sendMessage(Response response) {
         if( baseServer != null ) {
-            try {
-                baseServer.sendMessage(response);
-            } catch( IOException e ) {
-                Log.e(TAG, "Error sending message to client: " + e.getMessage());
-            }
+            baseServer.sendMessage(response);
         }
     }
 }

@@ -84,17 +84,6 @@ public class Utility {
         // generate and return the SVMPSensorEventMessage
         return new SVMPSensorEventMessage(type, accuracy, timestamp, values);
     }
-    public static FbStreamEventMessage toSVMPMessage(VideoRequest Request, int CMD) {
-	//int cmd = FbStreamEventMessage.START;
-	int cmd = CMD;
-	String IP = Request.getIp();
-	int port = Request.getPort();
-	int bitrate = 0;
-	if (Request.hasBitrate())
-		bitrate = Request.getBitrate();
-        return new FbStreamEventMessage(cmd,IP,port);
-
-    }
 
     public static Location getLocation(LocationUpdate locationUpdate) {
         Location location = null;

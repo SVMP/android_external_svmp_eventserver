@@ -15,17 +15,60 @@
  */
 package org.mitre.svmp.events;
 
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
 
+import java.io.ByteArrayOutputStream;
+
 /**
  * @author Joe Portner
  */
 public class Utility {
     private static String TAG = Utility.class.getName();
+
+    public static byte[] drawableToBytes (Drawable drawable) {
+        byte[] value = null;
+
+        try {
+            Bitmap bitmap;
+            if (drawable instanceof BitmapDrawable)
+                bitmap = ((BitmapDrawable)drawable).getBitmap();
+            else {
+                // get width and height of drawable
+                int width = drawable.getIntrinsicWidth(),
+                        height = drawable.getIntrinsicHeight();
+                // if the width and height aren't valid, this is a probably a solid Color resource; set them manually
+                if (width < 1)
+                    width = 48;
+                if (height < 1)
+                    height = 48;
+                // create a bitmap with the right width and height
+                bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
+                drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                // draw the drawable to the bitmap
+                drawable.draw(canvas);
+            }
+
+            // take the bitmap and convert it to a byte array
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.WEBP, 100, stream);
+            value = stream.toByteArray();
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting drawable to bitmap");
+            e.printStackTrace();
+            // don't care
+        }
+
+        return value;
+    }
 
     // converts SensorEvent Protobuf to SVMPSensorEventMessage that can be written directly to the sensor Unix socket
     public static SVMPSensorEventMessage toSVMPMessage(SensorEvent sensorEvent) {
@@ -112,7 +155,7 @@ public class Utility {
 
     public static Response buildUnsubscribeResponse(String provider) {
         LocationUnsubscribe.Builder lusBuilder = LocationUnsubscribe.newBuilder();
-        lusBuilder.setProvider(provider);;
+        lusBuilder.setProvider(provider);
 
         LocationResponse.Builder lrBuilder = LocationResponse.newBuilder();
         lrBuilder.setType(LocationResponse.LocationResponseType.UNSUBSCRIBE);

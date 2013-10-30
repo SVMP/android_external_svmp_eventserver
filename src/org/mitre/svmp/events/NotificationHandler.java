@@ -126,15 +126,7 @@ public class NotificationHandler extends BaseHandler {
                 //Get image from system resources.
                 Context foreignContext = baseServer.getContext().createPackageContext(notification.tickerView.getPackage(),
                         Context.CONTEXT_IGNORE_SECURITY);
-                Bitmap bitmap = BitmapFactory.decodeResource(foreignContext.getResources(), notification.icon);
-                ImageView img = (ImageView) root.findViewById(R.id.icon);
-                img.setImageBitmap(bitmap);
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                // TODO: catch failure here (icon is a drawable, doesn't have to be an image; for instance, can be a
-                //       color (see link: http://developer.android.com/guide/topics/resources/drawable-resource.html)
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
-                byte[] byteArray = stream.toByteArray();
-                //img.setImageResource(notification.icon);
+                byte[] byteArray = Utility.drawableToBytes(foreignContext.getResources().getDrawable(notification.icon));
 
                 //Set the re-compiled notification ticker layout view as a toast, and display.
                 Toast toast = new Toast(baseServer.getContext());

@@ -18,7 +18,14 @@ package org.mitre.svmp.events;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
+import com.google.protobuf.ByteString;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
@@ -31,6 +38,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -175,6 +183,10 @@ public abstract class BaseServer implements Constants {
                         break;
                     case ROTATION_INFO:
                         handleRotationInfo(msg);
+                        break;
+                    case PING:
+                        handlePing(msg);
+                        break;
                     default:
                         break;
                     }
@@ -243,6 +255,27 @@ public abstract class BaseServer implements Constants {
         Intent intent = new Intent(ROTATION_CHANGED_ACTION); // set action (protected system broadcast)
         intent.putExtra("rotation", rotation); // add rotation value to intent
         context.sendBroadcast(intent); // send broadcast
+    }
+
+    // when we receive a Ping message from the client, pack it back up in a Response wrapper and return it
+    public void handlePing(final Request request) {
+        if (request.hasPingRequest() ) {
+            // get the ping message that was sent from the client
+            Ping ping = request.getPingRequest();
+
+            // pack the ping message in a Response wrapper
+            Response.Builder builder = Response.newBuilder();
+            builder.setType(ResponseType.PING);
+            builder.setPingResponse(ping);
+            Response response = builder.build();
+
+            // send the response to the client
+            try {
+                sendMessage(response);
+            } catch (IOException e) {
+                // don't care
+            }
+        }
     }
 
     // called from the SensorMessageRunnable

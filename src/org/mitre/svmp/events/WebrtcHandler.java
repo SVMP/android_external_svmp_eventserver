@@ -114,7 +114,14 @@ public class WebrtcHandler {
     public void handleMessage(Request msg) {
         try {
             JSONObject json = new JSONObject(msg.getWebrtcMsg().getJson());
-            String type = (String) json.get("type");
+            String type;
+            try {
+                type = (String) json.get("type");
+            }
+            catch( JSONException e) {
+                json.put("type", "candidate");
+                type = (String) json.get("type");
+            }
             if (type.equals("candidate")) {
                 IceCandidate candidate = new IceCandidate(
                         // (String) json.get("id"),
@@ -221,7 +228,8 @@ public class WebrtcHandler {
 
         {
             Log.d(TAG, "Creating local video source...");
-            VideoCapturer capturer = getVideoCapturer();
+            VideoCapturer capturer = VideoCapturer.create();
+
             VideoSource videoSource = factory.createVideoSource(capturer, videoConstraints);
             MediaStream lMS = factory.createLocalMediaStream("ARDAMS");
             VideoTrack videoTrack = factory.createVideoTrack("ARDAMSv0", videoSource);
@@ -237,7 +245,7 @@ public class WebrtcHandler {
 
     // Cycle through likely device names for the camera and return the first
     // capturer that works, or crash if none do.
-    private VideoCapturer getVideoCapturer() {
+    /*private VideoCapturer getVideoCapturer() {
         String[] cameraFacing = { "front", "back" };
         int[] cameraIndex = { 0, 1 };
         int[] cameraOrientation = { 0, 90, 180, 270 };
@@ -255,7 +263,7 @@ public class WebrtcHandler {
             }
         }
         throw new RuntimeException("Failed to open capturer");
-    }
+    }*/
 
     // Send |json| to the underlying AppEngine Channel.
     private void sendMessage(JSONObject msg) {

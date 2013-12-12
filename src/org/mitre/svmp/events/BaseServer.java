@@ -151,6 +151,8 @@ public abstract class BaseServer implements Constants {
                         break;
                     case VIDEO_PARAMS:
                         webrtcHandler = new WebrtcHandler(this, msg.getVideoInfo());
+                        webrtcHandler.sendMessage(Response.newBuilder()
+                            .setType(ResponseType.VMREADY).build());
                         break;
                     case WEBRTC:
                         webrtcHandler.handleMessage(msg);

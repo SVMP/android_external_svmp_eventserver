@@ -175,6 +175,13 @@ public abstract class BaseServer implements Constants {
 //                handleWebRTC(Request.newBuilder().setType(RequestType.WEBRTC)
 //                    .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE))
 //                    .build());
+
+                // we still need the equivalent of BYE to stop the video from continuing
+                // to stream out at a nonexistent client
+
+                // FIXME: lacking a better solution, self destruct and let Android restart us
+                Log.i(TAG, "The client is no longer with us, self destructing to stop video streaming.");
+                java.lang.System.exit(0);
                 
                 try {
                     proxyIn.close();

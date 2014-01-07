@@ -39,14 +39,8 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
     private SQLiteDatabase db;
 
-    public DatabaseHandler(Context context, boolean clearData) {
+    public DatabaseHandler(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
-
-        // if we started up because of the Boot broadcast, we don't need old subscription data; get rid of it
-        if( clearData ) {
-            db = this.getWritableDatabase();
-            recreateTables(db);
-        }
     }
 
     public void close() {
@@ -204,6 +198,13 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 Tables[TABLE_LOCATION_SUBSCRIPTIONS],
                 "ID=?",
                 new String[]{ String.valueOf(id) });
+    }
+
+    protected long deleteAllSubscriptions() {
+        return deleteRecord(
+                Tables[TABLE_LOCATION_SUBSCRIPTIONS],
+                null,   // no where clause
+                null);  // no where args
     }
 
     private long deleteRecord( String table, String whereClause, String[] whereArgs ) {

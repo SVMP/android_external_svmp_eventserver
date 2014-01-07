@@ -32,11 +32,13 @@ public class LocationHandler extends BaseHandler {
     private static final String TAG = LocationHandler.class.getName();
 
     private LocationManager locationManager;
+    DatabaseHandler handler;
 
     public LocationHandler(BaseServer baseServer) {
         super(baseServer, LOCATION_SUBSCRIBE_ACTION, LOCATION_UNSUBSCRIBE_ACTION);
 
         this.locationManager = (LocationManager) baseServer.getContext().getSystemService(Context.LOCATION_SERVICE);
+        this.handler = new DatabaseHandler(baseServer.getContext());
     }
 
     // receive messages from the LocationManager service, pass them back to the client
@@ -58,10 +60,6 @@ public class LocationHandler extends BaseHandler {
             long minTime = intent.getLongExtra("minTime", 0L);
             float minDistance = intent.getFloatExtra("minDistance", 0.0f);
             boolean singleShot = intent.getBooleanExtra("singleShot", false);
-
-            // TODO: find out if it's better to store one DatabaseHandler for the entire object, or if this approach is fine
-            // create a new DatabaseHandler
-            DatabaseHandler handler = new DatabaseHandler(context, false);
 
             // construct Subscription for this request
             LocationSubscription locationSubscription = new LocationSubscription(provider, minTime, minDistance);
@@ -173,9 +171,6 @@ public class LocationHandler extends BaseHandler {
             } catch( IllegalArgumentException e ) {
                 // there was an existing test provider
             }
-
-            // create a new DatabaseHandler
-            DatabaseHandler handler = new DatabaseHandler(baseServer.getContext(), false);
 
             // get the foremost subscription (with the lowest combined minTime and minDistance)
             LocationSubscription foremostLocationSubscription = handler.getForemostSubscription(provider);

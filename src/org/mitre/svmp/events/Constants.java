@@ -20,7 +20,6 @@ package org.mitre.svmp.events;
  */
 public interface Constants {
     public static final int PROXY_PORT = 8001;
-    public static final int NETTY_WEBRTC_PORT = 7675;
 
     public static final String ROTATION_CHANGED_ACTION = "org.mitre.svmp.action.ROTATION_CHANGED";
     public static final String LOCATION_SUBSCRIBE_ACTION = "org.mitre.svmp.action.LOCATION_SUBSCRIBE";

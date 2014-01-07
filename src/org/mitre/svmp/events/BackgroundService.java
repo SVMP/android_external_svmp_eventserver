@@ -29,19 +29,32 @@ public class BackgroundService extends Service implements Constants {
     private static final String TAG = BackgroundService.class.getName();
 
     Thread myThread;
-    MyRunnable myRunnable;
 
     @Override
     public void onCreate() {
-        myRunnable = new MyRunnable();
-        myThread = new Thread(myRunnable);
-        myThread.setDaemon(true); // important, otherwise JVM does not exit at end of main()
-        myThread.start();
+        super.onCreate();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "Received start command");
+
+        // before we do anything, check to see if location subscriptions need to be cleared out of the database
+        // for some reason, we can't check to make sure the action matches BOOT_COMPLETED, the intent action is always null
+        // however, if the intent isn't null, that means it's not a scheduled restart for a service crash
+        if (intent != null) {
+            Log.d(TAG, "Initial service start, clearing out location subscription database");
+            DatabaseHandler handler = new DatabaseHandler(this);
+            handler.deleteAllSubscriptions();
+            handler.close();
+        }
+
+        // if the service isn't running, start it
+        if (myThread == null) {
+            myThread = new Thread(new MyRunnable());
+            myThread.setDaemon(true); // important, otherwise JVM does not exit at end of main()
+            myThread.start();
+        }
 
         // We want this service to continue running until it is explicitly
         // stopped, so return sticky.
@@ -50,9 +63,11 @@ public class BackgroundService extends Service implements Constants {
 
     @Override
     public void onDestroy() {
+        super.onDestroy();
         // TODO: interrupt the socket loop so it shuts down gracefully, then the thread can end
     }
 
+    @Override
     public IBinder onBind(Intent intent) {
         return null;
     }

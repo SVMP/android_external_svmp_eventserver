@@ -19,6 +19,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
+import org.mitre.svmp.events.logs.LogHandler;
 
 import java.io.IOException;
 
@@ -29,10 +30,15 @@ public class BackgroundService extends Service implements Constants {
     private static final String TAG = BackgroundService.class.getName();
 
     Thread myThread;
+    LogHandler logHandler;
 
     @Override
     public void onCreate() {
         super.onCreate();
+
+        // start log forwarding
+        logHandler = new LogHandler(this);
+        logHandler.startForwarding();
     }
 
     @Override
@@ -63,6 +69,7 @@ public class BackgroundService extends Service implements Constants {
 
     @Override
     public void onDestroy() {
+        logHandler.stopForwarding();
         super.onDestroy();
         // TODO: interrupt the socket loop so it shuts down gracefully, then the thread can end
     }

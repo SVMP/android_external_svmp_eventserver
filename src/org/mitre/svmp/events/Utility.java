@@ -21,6 +21,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
@@ -95,6 +96,7 @@ public class Utility {
             location.setLatitude(locationUpdate.getLatitude());
             location.setLongitude(locationUpdate.getLongitude());
             location.setTime(locationUpdate.getTime());
+            location.setElapsedRealtimeNanos(SystemClock.elapsedRealtimeNanos());
 
             // get optional fields
             if( locationUpdate.hasAccuracy() )

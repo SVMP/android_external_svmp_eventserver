@@ -16,7 +16,7 @@
   -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="org.mitre.svmp.events">
-    <uses-sdk android:minSdkVersion="15" android:targetSdkVersion="15"/>
+    <uses-sdk android:minSdkVersion="17" android:targetSdkVersion="17"/>
 
     <permission android:name="org.mitre.svmp.permission.RECEIVE_BOOT_COMPLETED"
                 android:label="BOOT_COMPLETED"

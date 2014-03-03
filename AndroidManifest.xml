@@ -55,6 +55,8 @@
 
     <!-- The webrtc shared library creates a trace file on the sdcard -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- The webrtc shared library requires RECORD_AUDIO permission -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- we use this to read LogCat output -->
     <uses-permission android:name="android.permission.READ_LOGS" />

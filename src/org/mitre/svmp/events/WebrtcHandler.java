@@ -44,6 +44,7 @@
  */
 package org.mitre.svmp.events;
 
+import android.content.Context;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -69,6 +70,7 @@ import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
+import android.app.Service;
 import android.os.PowerManager;
 import android.util.Log;
 
@@ -89,13 +91,24 @@ public class WebrtcHandler {
     private final boolean initiator = false;
     private final MediaConstraints pcConstraints;
     private final MediaConstraints videoConstraints;
+    private Context context;
     
     private BaseServer base;
     
-    public WebrtcHandler(BaseServer baseServer, VideoStreamInfo vidInfo) {
+    public WebrtcHandler(BaseServer baseServer, VideoStreamInfo vidInfo, Context c) {
         base = baseServer;
-        
-        sdpMediaConstraints = new MediaConstraints();
+	context = c;
+	// Pass in context to allow access to Android managed Audio driver.
+	PeerConnectionFactory.initializeAndroidGlobals(context);
+//        "Failed to initializeAndroidGlobals");
+//
+//    AudioManager audioManager =
+//        ((AudioManager) getSystemService(AUDIO_SERVICE));
+//    audioManager.setMode(audioManager.isWiredHeadsetOn() ?
+//        AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
+//    audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
+
+	sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
             "OfferToReceiveAudio", "false"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
@@ -165,7 +178,7 @@ public class WebrtcHandler {
 //          }
 //        });
 //
-//    // Uncomment to get ALL WebRTC tracing and SENSITIVE libjingle logging.
+// Uncomment to get ALL WebRTC tracing and SENSITIVE libjingle logging.
 //    // Logging.enableTracing(
 //    //     "/sdcard/trace.txt",
 //    //     EnumSet.of(Logging.TraceLevel.TRACE_ALL),

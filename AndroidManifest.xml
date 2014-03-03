@@ -40,6 +40,9 @@
     <!-- we use this to control the Sensors socket -->
     <uses-permission android:name="android.permission.NET_ADMIN"/>
 
+    <!-- we use this to read from the Framebuffer device, /dev/graphics/fb0 -->
+    <uses-permission android:name="android.permission.GRAPHICS"/>
+
     <!-- we use this to inject sensor and touch events -->
     <uses-permission android:name="android.permission.INJECT_EVENTS"/>
 

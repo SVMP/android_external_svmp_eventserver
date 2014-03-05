@@ -34,26 +34,28 @@ public class IntentHandler extends BaseHandler {
     private static final String TAG = IntentHandler.class.getName();
 
     public IntentHandler(BaseServer baseServer) {
-        super(baseServer, INTERCEPT_INTENT_ACTION);
+        super(baseServer, Intent.ACTION_NEW_OUTGOING_CALL);
     }
 
     public void onReceive(Context context, Intent intent) {
-        // validate the action of the broadcast (INTERCEPT_INTENT_ACTION is a protected broadcast)
-        if (intent.getAction().equals(INTERCEPT_INTENT_ACTION)
-                && intent.hasExtra("intentActionValue")
-                && intent.hasExtra("data")) {
+        // validate the action of the broadcast (ACTION_NEW_OUTGOING_CALL is a protected broadcast)
+        if (Intent.ACTION_NEW_OUTGOING_CALL.equals(intent.getAction())
+                && intent.hasExtra(Intent.EXTRA_PHONE_NUMBER)) {
             // pull relevant data from the intercepted intent
-            int intentActionValue = intent.getIntExtra("intentActionValue", -1);
-            String data = intent.getStringExtra("data");
+            String number = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);
+            Log.v(TAG, "Intercepted outgoing call");
 
             // attempt to build the Protobuf message
-            Response response = buildIntentResponse(intentActionValue, data);
+            Response response = buildIntentResponse(IntentAction.ACTION_DIAL.getNumber(), "tel:" + number);
 
             // if we encountered an error, log it; otherwise, send the Protobuf message
             if( response == null )
                 Log.e(TAG, "Error converting intercepted intent into a Protobuf message");
             else
                 sendMessage(response);
+
+            // null out the result data so the system doesn't try to place the call
+            setResultData(null);
         }
     }
 

@@ -52,7 +52,6 @@
     <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION"/>
 
     <!-- we use this to intercept Intent events -->
-    <uses-permission android:name="android.permission.CALL_PRIVILEGED"/>
     <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_NOTIFICATION"/>
     <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_INTENT"/>
 
@@ -64,6 +63,9 @@
     <!-- we use this to read LogCat output -->
     <uses-permission android:name="android.permission.READ_LOGS" />
 
+    <!-- we use this to intercept outgoing calls and forward them to the client -->
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
+
     <application android:icon="@drawable/color_icon" android:label="@string/app_name" android:persistent="true">
         <service android:name=".BackgroundService"/>
         <receiver android:name=".BootBroadcastReceiver">
@@ -71,17 +73,5 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
-        <!-- we use this to intercept Dialer intent actions -->
-        <activity android:name=".CallIntercept">
-            <intent-filter>
-                <action android:name="android.intent.action.CALL_BUTTON"/>
-                <action android:name="android.intent.action.VIEW"/>
-                <action android:name="android.intent.action.DIAL"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <action android:name="android.intent.action.CALL_PRIVILEGED"/>
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="tel"/>
-            </intent-filter>
-        </activity>
     </application>
 </manifest>

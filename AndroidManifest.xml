@@ -55,6 +55,10 @@
     <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_NOTIFICATION"/>
     <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_INTENT"/>
 
+    <!-- we use this to spoof a WiFi connection -->
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"/>
+    <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
+
     <!-- The webrtc shared library creates a trace file on the sdcard -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <!-- The webrtc shared library requires RECORD_AUDIO permission -->

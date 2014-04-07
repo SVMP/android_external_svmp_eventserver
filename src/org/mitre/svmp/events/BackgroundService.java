@@ -53,6 +53,9 @@ public class BackgroundService extends Service implements Constants {
             DatabaseHandler handler = new DatabaseHandler(this);
             handler.deleteAllSubscriptions();
             handler.close();
+
+            // send a sticky broadcast that spoofs the system into thinking a WiFi connection is active
+            WifiSpoofer.doSpoof(this);
         }
 
         // if the service isn't running, start it

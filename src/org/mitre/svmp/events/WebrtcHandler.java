@@ -45,9 +45,8 @@
 package org.mitre.svmp.events;
 
 import android.content.Context;
-import java.util.LinkedList;
-import java.util.List;
-
+import android.media.AudioManager;
+import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -56,82 +55,79 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 import org.mitre.svmp.protocol.SVMPProtocol.VideoStreamInfo;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
-import org.webrtc.DataChannel;
-import org.webrtc.IceCandidate;
-import org.webrtc.MediaConstraints;
-import org.webrtc.MediaStream;
-import org.webrtc.PeerConnection;
-import org.webrtc.PeerConnectionFactory;
-import org.webrtc.SdpObserver;
-import org.webrtc.SessionDescription;
-import org.webrtc.StatsObserver;
-import org.webrtc.StatsReport;
-import org.webrtc.VideoCapturer;
-import org.webrtc.VideoSource;
-import org.webrtc.VideoTrack;
+import org.webrtc.*;
 
-import android.app.Service;
-import android.os.PowerManager;
-import android.util.Log;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class WebrtcHandler {
     private static final String TAG = BaseServer.class.getName();
-    
+
+    private PeerConnectionFactory factory;
+    private VideoSource videoSource;
+
     private PeerConnection pc;
     private final PCObserver pcObserver = new PCObserver();
     private final SDPObserver sdpObserver = new SDPObserver();
     private MediaConstraints sdpMediaConstraints;
-    
+
     private LinkedList<IceCandidate> queuedRemoteCandidates =
-        new LinkedList<IceCandidate>();
+            new LinkedList<IceCandidate>();
     // Synchronize on quit[0] to avoid teardown-related crashes.
-    private final Boolean[] quit = new Boolean[] { false };
+    private final Boolean[] quit = new Boolean[]{false};
 
     private final List<PeerConnection.IceServer> iceServers;
     private final boolean initiator = false;
     private final MediaConstraints pcConstraints;
     private final MediaConstraints videoConstraints;
+    private final MediaConstraints audioConstraints;
     private Context context;
-    
+
     private BaseServer base;
-    
+
     public WebrtcHandler(BaseServer baseServer, VideoStreamInfo vidInfo, Context c) {
         base = baseServer;
-	context = c;
-	// Pass in context to allow access to Android managed Audio driver.
-	PeerConnectionFactory.initializeAndroidGlobals(context);
-//        "Failed to initializeAndroidGlobals");
-//
-//    AudioManager audioManager =
-//        ((AudioManager) getSystemService(AUDIO_SERVICE));
-//    audioManager.setMode(audioManager.isWiredHeadsetOn() ?
-//        AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
-//    audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
+        context = c;
+        // Pass in context to allow access to Android managed Audio driver.
+        PeerConnectionFactory.initializeAndroidGlobals(context);
+        //        "Failed to initializeAndroidGlobals");
 
-	sdpMediaConstraints = new MediaConstraints();
+        AudioManager audioManager =
+                ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE));
+        boolean isWiredHeadsetOn = audioManager.isWiredHeadsetOn();
+        audioManager.setMode(isWiredHeadsetOn ?
+                AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
+        audioManager.setSpeakerphoneOn(!isWiredHeadsetOn);
+
+        sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-            "OfferToReceiveAudio", "false"));
+                "OfferToReceiveAudio", "false"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-            "OfferToReceiveVideo", "true"));
-        
+                "OfferToReceiveVideo", "true"));
+
         pcConstraints = constraintsFromJSON(vidInfo.getPcConstraints());
         Log.d(TAG, "pcConstraints: " + pcConstraints);
 
         videoConstraints = constraintsFromJSON(vidInfo.getVideoConstraints());
         Log.d(TAG, "videoConstraints: " + videoConstraints);
 
+
+        audioConstraints = null;
+        //audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("audio","false"));
+
         iceServers = iceServersFromPCConfigJSON(vidInfo.getIceServers());
         onIceServers(iceServers);
     }
-    
+
     public void handleMessage(Request msg) {
         try {
             JSONObject json = new JSONObject(msg.getWebrtcMsg().getJson());
             String type;
             try {
                 type = (String) json.get("type");
-            }
-            catch( JSONException e) {
+            } catch (JSONException e) {
                 json.put("type", "candidate");
                 type = (String) json.get("type");
             }
@@ -139,8 +135,8 @@ public class WebrtcHandler {
                 IceCandidate candidate = new IceCandidate(
                         // (String) json.get("id"),
                         // json.getInt("label"),
-                        (String) json.get("sdpMid"),
-                        json.getInt("sdpMLineIndex"),
+                        (String) json.get("id"),
+                        json.getInt("label"),
                         (String) json.get("candidate"));
                 if (queuedRemoteCandidates != null) {
                     queuedRemoteCandidates.add(candidate);
@@ -150,7 +146,8 @@ public class WebrtcHandler {
             } else if (type.equals("answer") || type.equals("offer")) {
                 SessionDescription sdp = new SessionDescription(
                         SessionDescription.Type.fromCanonicalForm(type),
-                        (String) json.get("sdp"));
+                        //(String) json.get("sdp"));
+                        RemoveAudio((String) json.get("sdp")));
                 pc.setRemoteDescription(sdpObserver, sdp);
             } else if (type.equals("bye")) {
                 Log.d(TAG, "Remote end hung up; dropping PeerConnection");
@@ -162,7 +159,7 @@ public class WebrtcHandler {
             throw new RuntimeException(e);
         }
     }
-   
+
 //  @Override
 //  public void onCreate(Bundle savedInstanceState) {
 //    super.onCreate(savedInstanceState);
@@ -209,7 +206,7 @@ public class WebrtcHandler {
 //  }
 
     private void onIceServers(List<PeerConnection.IceServer> iceServers) {
-        PeerConnectionFactory factory = new PeerConnectionFactory();
+        factory = new PeerConnectionFactory();
 
         pc = factory.createPeerConnection(iceServers, pcConstraints, pcObserver);
 
@@ -241,15 +238,22 @@ public class WebrtcHandler {
 
         {
             Log.d(TAG, "Creating local video source...");
-            VideoCapturer capturer = VideoCapturer.create();
-
-            VideoSource videoSource = factory.createVideoSource(capturer, videoConstraints);
             MediaStream lMS = factory.createLocalMediaStream("ARDAMS");
-            VideoTrack videoTrack = factory.createVideoTrack("ARDAMSv0", videoSource);
-            // videoTrack.addRenderer(new VideoRenderer(new VideoCallbacks(
-            //     vsv, VideoStreamsView.Endpoint.LOCAL)));
-            lMS.addTrack(videoTrack);
-            lMS.addTrack(factory.createAudioTrack("ARDAMSa0"));
+            if (videoConstraints != null) {
+                VideoCapturer capturer = VideoCapturer.create();
+                videoSource = factory.createVideoSource(
+                        capturer, videoConstraints);
+                VideoTrack videoTrack =
+                        factory.createVideoTrack("ARDAMSv0", videoSource);
+                //videoTrack.addRenderer(new VideoRenderer(new VideoCallbacks(
+                //                    vsv, VideoStreamsView.Endpoint.LOCAL)));
+                lMS.addTrack(videoTrack);
+            }
+            if (audioConstraints != null) {
+                lMS.addTrack(factory.createAudioTrack(
+                        "ARDAMSa0",
+                        factory.createAudioSource(audioConstraints)));
+            }
             pc.addStream(lMS, new MediaConstraints());
         }
 
@@ -286,7 +290,7 @@ public class WebrtcHandler {
         sendMessage(Response.newBuilder().setType(ResponseType.WEBRTC)
                 .setWebrtcMsg(rtcmsg).build());
     }
-  
+
     public void sendMessage(Response msg) {
         base.sendMessage(msg);
     }
@@ -299,6 +303,25 @@ public class WebrtcHandler {
             throw new RuntimeException(e);
         }
     }
+/*
+ *
+ *    // Implementation detail: observe ICE & stream changes and react accordingly.
+ *    private class PCObserver implements PeerConnection.Observer {
+ *        @Override
+ *        public void onIceCandidate(final IceCandidate candidate) {
+ *            JSONObject json = new JSONObject();
+ *            //jsonPut(json, "type", "candidate");
+ *            //jsonPut(json, "label", candidate.sdpMLineIndex);
+ *            //jsonPut(json, "id", candidate.sdpMid);
+ *            //jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
+ *            //jsonPut(json, "sdpMid", candidate.sdpMid);
+ *            jsonPut(json, "type", "candidate");
+ *            jsonPut(json, "label", candidate.sdpMLineIndex);
+ *            jsonPut(json, "id", candidate.sdpMid);
+ *            jsonPut(json, "candidate", candidate.sdp);
+ *            sendMessage(json);
+ *        }
+ */
 
     // Implementation detail: observe ICE & stream changes and react accordingly.
     private class PCObserver implements PeerConnection.Observer {
@@ -306,10 +329,8 @@ public class WebrtcHandler {
         public void onIceCandidate(final IceCandidate candidate) {
             JSONObject json = new JSONObject();
             jsonPut(json, "type", "candidate");
-            // jsonPut(json, "label", candidate.sdpMLineIndex);
-            // jsonPut(json, "id", candidate.sdpMid);
-            jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
-            jsonPut(json, "sdpMid", candidate.sdpMid);
+            jsonPut(json, "label", candidate.sdpMLineIndex);
+            jsonPut(json, "id", candidate.sdpMid);
             jsonPut(json, "candidate", candidate.sdp);
             sendMessage(json);
         }
@@ -352,15 +373,104 @@ public class WebrtcHandler {
             // there shouldn't be any data channels from the client until
             // we implement P2P touch/sensor/etc. input
         }
+
+        @Override
+        public void onRenegotiationNeeded() {
+            // No need to do anything; AppRTC follows a pre-agreed-upon
+            // signaling/negotiation protocol.
+        }
     }
+
+    private String RemoveAudio(String sdpDescription) {
+        String[] lines = sdpDescription.split("\n");
+        int mLineIndex = -1;
+        String isac16kRtpMap = null;
+        //Log.d(TAG, "SDP: " + sdpDescription);
+        StringBuilder newSdpDescription = new StringBuilder();
+        boolean rmM = false;
+        ;
+        for (String line : lines) {
+            // if audio is not part of the bundle remove the m=audio
+            if (line.startsWith("a=group:BUNDLE") && (line.indexOf("audio") == -1)) {
+                //rmM = true;
+                //Log.d(TAG, "group:BUNDLE : audio not found!");
+            }
+        }
+        //Log.d(TAG, "group:BUNDLE : rmM: " + rmM);
+        for (String line : lines) {
+            if (rmM) {
+                if (!line.startsWith("m=audio"))
+                    newSdpDescription.append(line).append("\n");
+            } else
+                newSdpDescription.append(line).append("\n");
+        }
+        Log.d(TAG, "New SDP: " + newSdpDescription);
+        return newSdpDescription.toString();
+    }
+
+    // Mangle SDP to prefer ISAC/16000 over any other audio codec.
+    private String preferISAC(String sdpDescription) {
+        String[] lines = sdpDescription.split("\n");
+        int mLineIndex = -1;
+        String isac16kRtpMap = null;
+        Log.d(TAG, "SDP: " + sdpDescription);
+        Pattern isac16kPattern =
+                Pattern.compile("^a=rtpmap:(\\d+) ISAC/16000[\r]?$");
+        for (int i = 0;
+             (i < lines.length) && (mLineIndex == -1 || isac16kRtpMap == null);
+             ++i) {
+            if (lines[i].startsWith("m=audio ")) {
+                mLineIndex = i;
+                continue;
+            }
+            Matcher isac16kMatcher = isac16kPattern.matcher(lines[i]);
+            if (isac16kMatcher.matches()) {
+                isac16kRtpMap = isac16kMatcher.group(1);
+                continue;
+            }
+        }
+        if (mLineIndex == -1) {
+            Log.d(TAG, "No m=audio line, so can't prefer iSAC");
+            Log.d(TAG, "SDP: " + sdpDescription);
+            //Log.d(TAG, "SDP:%s",sdpDescription);
+            return sdpDescription;
+        }
+        if (isac16kRtpMap == null) {
+            Log.d(TAG, "No ISAC/16000 line, so can't prefer iSAC");
+            return sdpDescription;
+        }
+        String[] origMLineParts = lines[mLineIndex].split(" ");
+        StringBuilder newMLine = new StringBuilder();
+        int origPartIndex = 0;
+        // Format is: m=<media> <port> <proto> <fmt> ...
+        newMLine.append(origMLineParts[origPartIndex++]).append(" ");
+        newMLine.append(origMLineParts[origPartIndex++]).append(" ");
+        newMLine.append(origMLineParts[origPartIndex++]).append(" ");
+        newMLine.append(isac16kRtpMap).append(" ");
+        for (; origPartIndex < origMLineParts.length; ++origPartIndex) {
+            if (!origMLineParts[origPartIndex].equals(isac16kRtpMap)) {
+                newMLine.append(origMLineParts[origPartIndex]).append(" ");
+            }
+        }
+        lines[mLineIndex] = newMLine.toString();
+        StringBuilder newSdpDescription = new StringBuilder();
+        for (String line : lines) {
+            newSdpDescription.append(line).append("\n");
+        }
+        return newSdpDescription.toString();
+    }
+
 
     // Implementation detail: handle offer creation/signaling and answer
     // setting, as well as adding remote ICE candidates once the answer 
     // SDP is set.
     private class SDPObserver implements SdpObserver {
         @Override
-        public void onCreateSuccess(final SessionDescription sdp) {
-            Log.d(TAG, "Sending " + sdp.type);
+        public void onCreateSuccess(final SessionDescription origSdp) {
+            Log.d(TAG, "Sending " + origSdp.type);
+            SessionDescription sdp = new SessionDescription(
+                    //origSdp.type, preferISAC(origSdp.description));
+                    origSdp.type, RemoveAudio(origSdp.description));
             JSONObject json = new JSONObject();
             jsonPut(json, "type", sdp.type.canonicalForm());
             jsonPut(json, "sdp", sdp.description);
@@ -396,7 +506,8 @@ public class WebrtcHandler {
 
         @Override
         public void onSetFailure(final String error) {
-            throw new RuntimeException("setSDP error: " + error);
+            Log.d(TAG, "onSetFailure: Error:" + error);
+            //throw new RuntimeException("setSDP error: " + error);
         }
 
         private void drainRemoteCandidates() {
@@ -418,6 +529,14 @@ public class WebrtcHandler {
                 pc.dispose();
                 pc = null;
             }
+            if (videoSource != null) {
+                videoSource.dispose();
+                videoSource = null;
+            }
+            if (factory != null) {
+                factory.dispose();
+                factory = null;
+            }
             // appRtcClient.sendMessage("{\"type\": \"bye\"}");
 //            Response bye = Response
 //                    .newBuilder()
@@ -428,7 +547,7 @@ public class WebrtcHandler {
 //            base.sendMessage(bye);
         }
     }
-  
+
     private MediaConstraints constraintsFromJSON(String jsonString) {
         try {
             MediaConstraints constraints = new MediaConstraints();
@@ -477,5 +596,4 @@ public class WebrtcHandler {
             throw new RuntimeException(e);
         }
     }
-  
 }

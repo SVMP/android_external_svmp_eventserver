@@ -152,6 +152,10 @@ public class WebrtcHandler {
             } else if (type.equals("bye")) {
                 Log.d(TAG, "Remote end hung up; dropping PeerConnection");
                 disconnectAndExit();
+                Log.d(TAG, "Creating new ICE Candidate list");
+                queuedRemoteCandidates = new LinkedList<IceCandidate>();
+                Log.d(TAG, "Running onIceServers");
+                onIceServers(iceServers);
             } else {
                 throw new RuntimeException("Unexpected message: " + msg);
             }
@@ -525,18 +529,22 @@ public class WebrtcHandler {
                 return;
             }
             quit[0] = true;
+            Log.d(TAG, "Disposing of PeerConnection");
             if (pc != null) {
                 pc.dispose();
                 pc = null;
             }
+            Log.d(TAG, "Disposing of VideoSource");
             if (videoSource != null) {
                 videoSource.dispose();
                 videoSource = null;
             }
+            Log.d(TAG, "Disposing of PeerConnectionFactory");
             if (factory != null) {
                 factory.dispose();
                 factory = null;
             }
+            quit[0] = false;
             // appRtcClient.sendMessage("{\"type\": \"bye\"}");
 //            Response bye = Response
 //                    .newBuilder()

@@ -124,6 +124,7 @@ public class WebrtcHandler {
     public void handleMessage(Request msg) {
         try {
             JSONObject json = new JSONObject(msg.getWebrtcMsg().getJson());
+            Log.d(TAG, "Received WebRTC message from peer:\n" + json.toString(4));
             String type;
             try {
                 type = (String) json.get("type");
@@ -290,6 +291,12 @@ public class WebrtcHandler {
     private void sendMessage(JSONObject msg) {
         WebRTCMessage.Builder rtcmsg = WebRTCMessage.newBuilder();
         rtcmsg.setJson(msg.toString());
+
+        try {
+            Log.d(TAG, "Sending WebRTC message: " + msg.toString(4));
+        } catch (JSONException e) {
+            Log.e(TAG, "Error printing outbound WebRTC JSON to logcat");
+        }
 
         sendMessage(Response.newBuilder().setType(ResponseType.WEBRTC)
                 .setWebrtcMsg(rtcmsg).build());
@@ -592,12 +599,15 @@ public class WebrtcHandler {
         try {
             JSONObject json = new JSONObject(pcConfig);
             JSONArray servers = json.getJSONArray("iceServers");
+            Log.d(TAG, "ICE server JSON: " + json.toString(4));
             LinkedList<PeerConnection.IceServer> ret = new LinkedList<PeerConnection.IceServer>();
             for (int i = 0; i < servers.length(); ++i) {
                 JSONObject server = servers.getJSONObject(i);
                 String url = server.getString("url");
+                String username = server.has("username") ? server.getString("username") : "";
                 String credential = server.has("credential") ? server.getString("credential") : "";
-                ret.add(new PeerConnection.IceServer(url, "", credential));
+                credential = server.has("password") ? server.getString("password") : credential;
+                ret.add(new PeerConnection.IceServer(url, username, credential));
             }
             return ret;
         } catch (JSONException e) {

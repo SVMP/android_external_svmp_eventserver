@@ -58,10 +58,8 @@ public class NotificationHandler extends BaseHandler {
             // attempt to build the Protobuf message
             Response response = buildNotificationResponse(notification);
 
-            // if we encountered an error, log it; otherwise, send the Protobuf message
-            if( response == null )
-                Log.e(TAG, "Error converting intercepted notification into a Protobuf message");
-            else
+            // if we didn't encounter an error, send the Protobuf message
+            if( response != null )
                 sendMessage(response);
         }
     }
@@ -72,9 +70,13 @@ public class NotificationHandler extends BaseHandler {
     @SuppressWarnings("unchecked")
     private Response buildNotificationResponse(Notification notification) {
         RemoteViews view = notification.tickerView;
-        Class<? extends RemoteViews> secretClass = view.getClass();
+        if (view == null) {
+            Log.d(TAG, "Failed to convert intercepted notification into a Protobuf message, tickerView is null");
+            return null;
+        }
 
         try {
+            Class<? extends RemoteViews> secretClass = view.getClass();
             Map<Integer, String> text = new HashMap<Integer, String>();
 
             Field outerFields[] = secretClass.getDeclaredFields();
@@ -145,6 +147,7 @@ public class NotificationHandler extends BaseHandler {
                         ).build();
             }
         } catch (Exception e) {
+            Log.d(TAG, "Error converting intercepted notification into a Protobuf message: " + e.getMessage());
             e.printStackTrace();
         }
         return null;

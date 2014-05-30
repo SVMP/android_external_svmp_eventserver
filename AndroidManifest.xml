@@ -68,6 +68,9 @@
     <!-- we use this to read LogCat output -->
     <uses-permission android:name="android.permission.READ_LOGS" />
 
+    <!-- we use this to set the system default timezone to match the client's -->
+    <uses-permission android:name="android.permission.SET_TIME_ZONE" />
+
     <!-- we use this to intercept outgoing calls and forward them to the client -->
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
 

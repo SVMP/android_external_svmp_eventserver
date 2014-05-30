@@ -15,6 +15,8 @@ limitations under the License.
 */
 package org.mitre.svmp.events;
 
+import android.app.Activity;
+import android.app.AlarmManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -87,7 +89,7 @@ public abstract class BaseServer implements Constants {
 
         // start receiving notification intercept messages
         notificationHandler = new NotificationHandler(this);
-        
+
         // We create a SingleThreadExecutor because it executes sequentially
         // this guarantees that sensor event messages will be sent in order
         sensorMsgExecutor = Executors.newSingleThreadExecutor();
@@ -162,6 +164,9 @@ public abstract class BaseServer implements Constants {
                         break;
                     case PING:
                         handlePing(msg);
+                        break;
+                    case TIMEZONE:
+                        handleTimezone(msg);
                         break;
                     default:
                         break;
@@ -250,6 +255,17 @@ public abstract class BaseServer implements Constants {
                 // don't care
             //}
         }
+    }
+
+    // set the system default timezone based on the client's timezone
+    public void handleTimezone(final Request request) {
+      if (request.hasTimezoneId()) {
+        
+        // Reference: packages/apps/Settings/src/com/android/settings/ZonePicker.java
+        // Update the system timezone value
+        final AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        alarm.setTimeZone(request.getTimezoneId());
+      }
     }
 
     // called from the SensorMessageRunnable

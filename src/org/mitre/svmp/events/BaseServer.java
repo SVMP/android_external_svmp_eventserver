@@ -1,5 +1,5 @@
 /*
-Copyright 2013 The MITRE Corporation, All Rights Reserved.
+Copyright 2014 The MITRE Corporation, All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this work except in compliance with the License.
@@ -15,24 +15,15 @@ limitations under the License.
 */
 package org.mitre.svmp.events;
 
-import android.app.Activity;
 import android.app.AlarmManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
+import android.os.AsyncTask;
 import android.util.Log;
-import com.google.protobuf.ByteString;
+
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
-import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
-import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
 import org.mitre.svmp.protocol.SVMPSensorEventMessage;
 
 import java.io.IOException;
@@ -40,21 +31,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
 
 /**
- * Base, single-threaded, 1 socket at a time, TCP Server.  The server uses a queue to process
- * messages.
- * @author Dave Bryson
+ * Base, 1 socket at a time, TCP Server.
+ * 
+ * Threaded to not completely block and ignore new connections while an
+ * existing one is running, but a new connection will kick off any previous
+ * logins. Only one live connection at a time is allowed.
  */
 public abstract class BaseServer implements Constants {
     private ServerSocket proxySocket;
+    private BlockingQueue<Socket> clientSocketQueue;
     private OutputStream proxyOut = null;
     private InputStream proxyIn = null;
     private int proxyPort;
-    private static final int BUFFER_SIZE = 8 * 1024;
     private static final String TAG = BaseServer.class.getName();
     
     private native int InitSockClient(String path);
@@ -68,6 +62,7 @@ public abstract class BaseServer implements Constants {
     private NotificationHandler notificationHandler;
     private ExecutorService sensorMsgExecutor;
     private final Object sendMessageLock = new Object();
+    private WebrtcHandler webrtcHandler = null;
 
     public BaseServer(Context context) throws IOException {
         this.context = context;
@@ -103,118 +98,145 @@ public abstract class BaseServer implements Constants {
         // only BroadcastReceivers with the appropriate permission can receive this broadcast
         context.sendBroadcast(intent, "org.mitre.svmp.permission.RECEIVE_BOOT_COMPLETED");
 
+        clientSocketQueue = new SynchronousQueue<Socket>();
+        new Thread(new SocketAcceptor()).start();
         this.run();
     }
 
-    protected void run() {
-        while (true) {
-            Socket socket = null;
-            try {
-                socket = proxySocket.accept();
-                Log.d(TAG, "Socket connected");
-                proxyOut = socket.getOutputStream();
-                proxyIn = socket.getInputStream();
-            } catch (IOException e) {
-                Log.e(TAG, "Problem accepting socket: " + e.getMessage());
-            }
-            
-            WebrtcHandler webrtcHandler = null;
+    private class SocketAcceptor implements Runnable {
+        public void run() {
+            InputStream oldClientIn = null;
+            OutputStream oldClientOut = null;
 
-            /**
-             * We only accept 1 socket at a time.  When we get a connection we
-             * enter the loop below and process requests from that particular socket.
-             * When that socket closes, then we go back to accept() and wait for a new
-             * connection.
-             */
-            try {
-                while (socket.isConnected()) {
-                    SVMPProtocol.Request msg = SVMPProtocol.Request.parseDelimitedFrom(proxyIn);
-                    //logInfo("Received message " + msg.getType().name());
-
-                    if( msg == null )
-                        break;
-
-                    switch(msg.getType()) {
-                    case SCREENINFO:
-                    	handleScreenInfo(msg);
-                    	break;
-                    case TOUCHEVENT:
-                    	handleTouch(msg.getTouch());
-                    	break;
-                    case SENSOREVENT:
-                        // use the thread pool to handle this
-                    	handleSensor(msg.getSensor());
-                    	break;
-                    case INTENT:
-                        intentHandler.handleMessage(msg);
-                        break;
-                    case LOCATION:
-                        locationHandler.handleMessage(msg);
-                        break;
-                    case VIDEO_PARAMS:
-                        webrtcHandler = new WebrtcHandler(this, msg.getVideoInfo(), context);
-                        webrtcHandler.sendMessage(Response.newBuilder()
-                            .setType(ResponseType.VMREADY).build());
-                        break;
-                    case WEBRTC:
-                        webrtcHandler.handleMessage(msg);
-                        break;
-                    case ROTATION_INFO:
-                        handleRotationInfo(msg);
-                        break;
-                    case PING:
-                        handlePing(msg);
-                        break;
-                    case TIMEZONE:
-                        handleTimezone(msg);
-                        break;
-                    case APPS:
-                        handleApps(msg);
-                        break;
-                    default:
-                        break;
-                    }
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error on socket: " + e.getMessage());
-                e.printStackTrace();
-            } finally {
-                // send a final BYE to fbstream via the webrtc helper
-//                handleWebRTC(Request.newBuilder().setType(RequestType.WEBRTC)
-//                    .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE))
-//                    .build());
-
-                // we still need the equivalent of BYE to stop the video from continuing
-                // to stream out at a nonexistent client
-
-                // FIXME: lacking a better solution, self destruct and let Android restart us
-                Log.i(TAG, "The client is no longer with us, self destructing to stop video streaming.");
-                java.lang.System.exit(0);
-                
+            while (true) {
                 try {
-                    proxyIn.close();
-                    proxyOut.close();
-                    socket.close();
-                } catch (Exception e) {
-                    // Don't care
+                    Socket socket = proxySocket.accept();
+                    Log.i(TAG, "New client socket connection received.");
+
+                    // If there's already an existing connection, kill it.
+                    if (proxyIn != null) {
+                        Log.i(TAG, "Previous client session still active, disconnecting it.");
+                        // close the streams to break anything blocked reading them
+                        if (proxyIn != null)  proxyIn.close();
+                        if (proxyOut != null) proxyOut.close();
+                    }
+
+                    proxyOut = null;
+                    proxyIn = null;
+                    clientSocketQueue.put(socket);
+                } catch (IOException e) {
+                    Log.e(TAG, "Problem accepting socket: " + e.getMessage());
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Interrupted while handing off client socket. " + e.getMessage());
                 }
             }
         }
     }
-    
-    private void disconnet() {
-        
+
+    protected void run() {
+        while (true) {
+            try {
+                clientHandler(clientSocketQueue.take());
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Interrupted while waiting for client socket. " + e.getMessage());
+            }
+        }
     }
 
+    private void clientHandler(Socket socket) {
+        Log.d(TAG, "Client connection handler starting.");
+        try {
+            proxyIn = socket.getInputStream();
+            proxyOut = socket.getOutputStream();
+            while (socket.isConnected()) {
+                SVMPProtocol.Request msg = SVMPProtocol.Request.parseDelimitedFrom(proxyIn);
+                //logInfo("Received message " + msg.getType().name());
+
+                if( msg == null )
+                    break;
+
+                switch(msg.getType()) {
+                case SCREENINFO:
+                    handleScreenInfo(msg);
+                    break;
+                case TOUCHEVENT:
+                    handleTouch(msg.getTouch());
+                    break;
+                case SENSOREVENT:
+                    // use the thread pool to handle this
+                    handleSensor(msg.getSensor());
+                    break;
+                case INTENT:
+                    intentHandler.handleMessage(msg);
+                    break;
+                case LOCATION:
+                    locationHandler.handleMessage(msg);
+                    break;
+                case VIDEO_PARAMS:
+                    initWebRTC(msg);
+                    webrtcHandler.sendMessage(Response.newBuilder()
+                        .setType(ResponseType.VMREADY).build());
+                    break;
+                case WEBRTC:
+                    webrtcHandler.handleMessage(msg);
+                    break;
+                case ROTATION_INFO:
+                    handleRotationInfo(msg);
+                    break;
+                case PING:
+                    handlePing(msg);
+                    break;
+                case TIMEZONE:
+                    handleTimezone(msg);
+                    break;
+                case APPS:
+                    handleApps(msg);
+                    break;
+                default:
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error on socket: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            if (webrtcHandler != null) {
+                webrtcHandler.disconnectAndExit();
+            }
+ 
+            try {
+                proxyIn.close();
+                proxyOut.close();
+                socket.close();
+            } catch (Exception e) {
+                // Don't care
+            } finally {
+                proxyIn = null;
+                proxyOut = null;
+                socket = null;
+            }
+            Log.d(TAG, "Client connection handler finished.");
+        }
+    }
+
+    private void initWebRTC(SVMPProtocol.Request msg) {
+        // only ever create one WebRTC handler
+        if (webrtcHandler == null) {
+            Log.d(TAG, "Creating new WebRTC Handler.");
+            // the video parameters won't change from one session to the next
+            webrtcHandler = new WebrtcHandler(BaseServer.this, msg.getVideoInfo(), context);
+        } else {
+            Log.d(TAG, "Reusing existing WebRTC Handler.");
+        }
+    }
+ 
     protected void sendMessage(Response message) {
         // use synchronized statement to ensure only one message gets sent at a time
         synchronized(sendMessageLock) {
             try {
                 message.writeDelimitedTo(proxyOut);
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                Log.e(TAG, "Socket write error: " + e.getMessage());
-                e.printStackTrace();
+                Log.e(TAG, "Error sending message to client: " + e.getMessage());
             }
         }
     }
@@ -223,7 +245,7 @@ public abstract class BaseServer implements Constants {
         return context;
     }
 
-    public abstract void handleScreenInfo(final Request message);
+    public abstract void handleScreenInfo(final Request message) throws IOException;
     public abstract void handleTouch(final TouchEvent event);
 
     private void handleSensor(final SensorEvent event) {
@@ -240,7 +262,7 @@ public abstract class BaseServer implements Constants {
     }
 
     // when we receive a Ping message from the client, pack it back up in a Response wrapper and return it
-    public void handlePing(final Request request) {
+    public void handlePing(final Request request) throws IOException {
         if (request.hasPingRequest() ) {
             // get the ping message that was sent from the client
             Ping ping = request.getPingRequest();
@@ -251,12 +273,7 @@ public abstract class BaseServer implements Constants {
             builder.setPingResponse(ping);
             Response response = builder.build();
 
-            // send the response to the client
-            //try {
-                sendMessage(response);
-            //} catch (IOException e) {
-                // don't care
-            //}
+            sendMessage(response);
         }
     }
 

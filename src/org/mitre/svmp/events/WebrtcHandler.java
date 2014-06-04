@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
+ * Copyright (c) 2014 The MITRE Corporation, All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this work except in compliance with the License.
@@ -153,10 +153,6 @@ public class WebrtcHandler {
             } else if (type.equals("bye")) {
                 Log.d(TAG, "Remote end hung up; dropping PeerConnection");
                 disconnectAndExit();
-                Log.d(TAG, "Creating new ICE Candidate list");
-                queuedRemoteCandidates = new LinkedList<IceCandidate>();
-                Log.d(TAG, "Running onIceServers");
-                onIceServers(iceServers);
             } else {
                 throw new RuntimeException("Unexpected message: " + msg);
             }
@@ -530,7 +526,7 @@ public class WebrtcHandler {
     }
 
     // Disconnect from remote resources, dispose of local resources, and exit.
-    private void disconnectAndExit() {
+    public void disconnectAndExit() {
         synchronized (quit[0]) {
             if (quit[0]) {
                 return;
@@ -552,14 +548,10 @@ public class WebrtcHandler {
                 factory = null;
             }
             quit[0] = false;
-            // appRtcClient.sendMessage("{\"type\": \"bye\"}");
-//            Response bye = Response
-//                    .newBuilder()
-//                    .setType(ResponseType.WEBRTC)
-//                    .setWebrtcMsg(
-//                            WebRTCMessage.newBuilder().setType(WebRTCType.BYE))
-//                    .build();
-//            base.sendMessage(bye);
+            Log.d(TAG, "Creating new ICE Candidate list");
+            queuedRemoteCandidates = new LinkedList<IceCandidate>();
+            Log.d(TAG, "Running onIceServers");
+            onIceServers(iceServers);
         }
     }
 

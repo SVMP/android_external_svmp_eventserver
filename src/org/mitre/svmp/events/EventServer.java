@@ -1,5 +1,5 @@
 /*
-Copyright 2013 The MITRE Corporation, All Rights Reserved.
+Copyright 2014 The MITRE Corporation, All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this work except in compliance with the License.
@@ -35,9 +35,6 @@ import java.io.IOException;
 import org.mitre.svmp.protocol.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 
-/**
- * @author Dave Bryson
- */
 public class EventServer extends BaseServer {
     private static final String TAG = EventServer.class.getName();
 
@@ -51,35 +48,30 @@ public class EventServer extends BaseServer {
         super(context);
         windowManager = IWindowManager.Stub.asInterface(ServiceManager.getService("window"));
         display = DisplayManagerGlobal.getInstance().getRealDisplay(Display.DEFAULT_DISPLAY);
-                       
+ 
         // try{
           // windowManager.getRealDisplaySize(screenSize);	  
           display.getRealSize(screenSize);
         // } catch (RemoteException re){
         //   Utility.logError("Error getting display size: " + re.getMessage());
         // }
-        
+
         Log.d(TAG, "Display Size: " + screenSize.x + " , " + screenSize.y);
-         
+
         start();
-        wake();
     }
 
     @Override
-    public void handleScreenInfo(final SVMPProtocol.Request message){
-//        try{
-        	SVMPProtocol.Response.Builder msg = SVMPProtocol.Response.newBuilder();
-        	SVMPProtocol.ScreenInfo.Builder scr = SVMPProtocol.ScreenInfo.newBuilder();
-        	scr.setX(screenSize.x);
-        	scr.setY(screenSize.y);
-        	msg.setScreenInfo(scr);
-        	msg.setType(ResponseType.SCREENINFO);
-        	sendMessage(msg.build());
-        	
-        	Log.d(TAG, "Sent screen info response: " + screenSize.x + "," + screenSize.y);
-//        } catch (IOException ioe){
-//            Log.e(TAG, "Problem handling message:  " + ioe.getMessage());
-//        }
+    public void handleScreenInfo(final SVMPProtocol.Request message) throws IOException {
+        SVMPProtocol.Response.Builder msg = SVMPProtocol.Response.newBuilder();
+        SVMPProtocol.ScreenInfo.Builder scr = SVMPProtocol.ScreenInfo.newBuilder();
+        scr.setX(screenSize.x);
+        scr.setY(screenSize.y);
+        msg.setScreenInfo(scr);
+        msg.setType(ResponseType.SCREENINFO);
+        sendMessage(msg.build());
+
+        Log.d(TAG, "Sent screen info response: " + screenSize.x + "," + screenSize.y);
     }
 
     @Override
@@ -153,20 +145,4 @@ public class EventServer extends BaseServer {
 
     }
 
-    /**
-     * Wake the Device
-     *
-     * @return true if successful else false
-     */
-    private static boolean wake() {
-        IPowerManager pm =
-                IPowerManager.Stub.asInterface(ServiceManager.getService(Context.POWER_SERVICE));
-        try {
-            // pm.userActivityWithForce(SystemClock.uptimeMillis(), true, true);
-            pm.wakeUp(SystemClock.uptimeMillis());
-        } catch (RemoteException e) {
-            return false;
-        }
-        return true;
-    }
 }

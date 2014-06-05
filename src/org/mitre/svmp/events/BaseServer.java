@@ -168,6 +168,9 @@ public abstract class BaseServer implements Constants {
                     case TIMEZONE:
                         handleTimezone(msg);
                         break;
+                    case APPS:
+                        handleApps(msg);
+                        break;
                     default:
                         break;
                     }
@@ -206,7 +209,7 @@ public abstract class BaseServer implements Constants {
     protected void sendMessage(Response message) {
         // use synchronized statement to ensure only one message gets sent at a time
         synchronized(sendMessageLock) {
-    	    try {
+            try {
                 message.writeDelimitedTo(proxyOut);
             } catch (IOException e) {
                 // TODO Auto-generated catch block
@@ -266,6 +269,22 @@ public abstract class BaseServer implements Constants {
         final AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         alarm.setTimeZone(request.getTimezoneId());
       }
+    }
+
+    private void handleApps(final Request request) {
+        AppsRequest appsRequest = request.getApps();
+        if (appsRequest.getType() == AppsRequest.AppsRequestType.REFRESH) {
+            // the client is asking for a refreshed list of available apps, handle the request
+            new AppsRequestHandler(this, appsRequest).start();
+        } else if (appsRequest.getType() == AppsRequest.AppsRequestType.LAUNCH) {
+            // the client is asking us to launch a specific app
+            String pkgName = appsRequest.getPkgName();
+            Intent intent = context.getPackageManager().getLaunchIntentForPackage(pkgName);
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent);
+            }
+        }
     }
 
     // called from the SensorMessageRunnable

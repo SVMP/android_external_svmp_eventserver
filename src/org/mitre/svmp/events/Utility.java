@@ -60,12 +60,10 @@ public class Utility {
 
             // take the bitmap and convert it to a byte array
             ByteArrayOutputStream stream = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.WEBP, 100, stream);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
             value = stream.toByteArray();
         } catch (Exception e) {
             Log.e(TAG, "Error converting drawable to bitmap");
-            e.printStackTrace();
-            // don't care
         }
 
         return value;

@@ -24,9 +24,9 @@ import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 
 /**
- * C->S: Receives Location provider info/status, enabled, and updates from th, and sends them to the LocationManager
- * S->C: Receives intercepted Location requests, converts them to Protobuf messages, and sends them back to the client
  * @author Joe Portner
+ * C->S: Receives Location provider info/status, enabled, and updates from the client, and sends them to the LocationManager
+ * S->C: Receives intercepted Location requests, converts them to Protobuf messages, and sends them back to the client
  */
 public class LocationHandler extends BaseHandler {
     private static final String TAG = LocationHandler.class.getName();
@@ -42,6 +42,8 @@ public class LocationHandler extends BaseHandler {
     }
 
     // receive messages from the LocationManager service, pass them back to the client
+    // we can't require a sender permission from LocationManager, so the subscribe and unsubscribe actions are
+    // protected system broadcasts
     public void onReceive(Context context, Intent intent) {
         // check the Intent Action to make sure it is valid (either "start" or "stop")
         boolean start;

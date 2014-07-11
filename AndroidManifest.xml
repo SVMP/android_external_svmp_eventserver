@@ -18,21 +18,13 @@
           package="org.mitre.svmp.events">
     <uses-sdk android:minSdkVersion="17" android:targetSdkVersion="17"/>
 
-    <permission android:name="org.mitre.svmp.permission.RECEIVE_BOOT_COMPLETED"
-                android:label="BOOT_COMPLETED"
+    <!-- used to protect broadcasts from LocationManager, NotificationManager, and LauncherActivity -->
+    <permission android:name="org.mitre.svmp.permission.SVMP_BROADCAST"
+                android:label="SVMP_BROADCAST"
                 android:protectionLevel="signatureOrSystem" />
 
-    <permission android:name="org.mitre.svmp.permission.RECEIVE_LOCATION_ACTIONS"
-                android:label="LOCATION_ACTIONS"
-                android:protectionLevel="signatureOrSystem" />
-
-    <permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_NOTIFICATION"
-                android:label="INTERCEPT_NOTIFICATION"
-                android:protectionLevel="signatureOrSystem" />
-
-    <permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_INTENT"
-                android:label="INTERCEPT_INTENT"
-                android:protectionLevel="signatureOrSystem" />
+    <!-- we use this so other contexts can securely communicate with our svmpd server -->
+    <uses-permission android:name="org.mitre.svmp.permission.SVMP_BROADCAST"/>
 
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -47,17 +39,13 @@
     <uses-permission android:name="android.permission.INJECT_EVENTS"/>
 
     <!-- we use these to inject Location events -->
-    <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_LOCATION_ACTIONS"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION"/>
-
-    <!-- we use this to intercept Intent events -->
-    <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_NOTIFICATION"/>
-    <uses-permission android:name="org.mitre.svmp.permission.RECEIVE_INTERCEPT_INTENT"/>
 
     <!-- we use this to spoof a WiFi connection -->
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"/>
     <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
+    <uses-permission android:name="android.permission.CONNECTIVITY_INTERNAL"/>
 
     <!-- The webrtc shared library creates a trace file on the sdcard -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -74,12 +62,41 @@
     <!-- we use this to intercept outgoing calls and forward them to the client -->
     <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
 
-    <application android:icon="@drawable/color_icon" android:label="@string/app_name" android:debuggable="true" android:persistent="true" >
+    <!-- we use these to inject configuration changes from the client -->
+    <uses-permission android:name="android.permission.CHANGE_CONFIGURATION" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
+    <!-- we use this to change preferred activities -->
+    <uses-permission android:name="android.permission.SET_PREFERRED_APPLICATIONS" />
+
+    <!-- we use this permission to stop other packages (unneeded launcher) -->
+    <!--<uses-permission android:name="android.permission.FORCE_STOP_PACKAGES" />-->
+
+    <application android:icon="@drawable/color_icon"
+                 android:label="@string/app_name"
+                 android:debuggable="true"
+                 android:persistent="true" >
         <service android:name=".BackgroundService"/>
         <receiver android:name=".BootBroadcastReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
+        <!-- this activity replaces the default launcher -->
+        <activity android:name=".LauncherActivity"
+                  android:launchMode="singleTask"
+                  android:clearTaskOnLaunch="true"
+                  android:stateNotNeeded="true"
+                  android:excludeFromRecents="true"
+                  android:screenOrientation="nosensor"
+                >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <!-- The following two intent-filters are the key to set homescreen -->
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

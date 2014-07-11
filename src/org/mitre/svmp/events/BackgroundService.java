@@ -17,6 +17,7 @@ package org.mitre.svmp.events;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.util.Log;
 import org.mitre.svmp.events.logs.LogHandler;
@@ -53,6 +54,9 @@ public class BackgroundService extends Service implements Constants {
             DatabaseHandler handler = new DatabaseHandler(this);
             handler.deleteAllSubscriptions();
             handler.close();
+
+            // clear out config preferences
+            ConfigHandler.onBoot(this);
 
             // send a sticky broadcast that spoofs the system into thinking a WiFi connection is active
             WifiSpoofer.doSpoof(this);

@@ -19,23 +19,21 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.location.Location;
-import android.location.LocationManager;
-import android.os.Bundle;
-import android.util.Log;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
-
-import java.io.IOException;
 
 /**
  * @author Joe Portner
  */
 public class BaseHandler extends BroadcastReceiver implements Constants{
-    private static final String TAG = BaseHandler.class.getName();
-
     protected BaseServer baseServer;
 
+    // register a receiver without requiring any sender permissions
     public BaseHandler(BaseServer baseServer, String... filterActions) {
+        this(null, baseServer, filterActions);
+    }
+
+    // register a receiver, if "permission" is not null then it requires that the sender has that permission
+    public BaseHandler(String permission, BaseServer baseServer, String... filterActions) {
         super();
         this.baseServer = baseServer;
 
@@ -44,7 +42,10 @@ public class BaseHandler extends BroadcastReceiver implements Constants{
             IntentFilter intentFilter = new IntentFilter();
             for( int i = 0; i < filterActions.length; i++ )
                 intentFilter.addAction(filterActions[i]);
-            baseServer.getContext().registerReceiver(this, intentFilter);
+            if (permission == null)
+                baseServer.getContext().registerReceiver(this, intentFilter);
+            else
+                baseServer.getContext().registerReceiver(this, intentFilter, permission, null);
         }
     }
 

@@ -14,7 +14,15 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-<resources>
-    <string name="app_name">android_external_svmp_eventserver</string>
-    <string name="layout_launcheractivity_textview_text">If you see this message, press the Back button to exit</string>
-</resources>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/layout_launcheractivity_textview_text"
+            android:id="@+id/textView"
+            android:layout_centerInParent="true" android:textSize="28dp" android:gravity="center_horizontal"
+            android:padding="5dp" android:textColor="#00ff00"/>
+</RelativeLayout>

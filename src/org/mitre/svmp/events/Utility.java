@@ -36,6 +36,8 @@ public class Utility {
 
     public static byte[] drawableToBytes (Drawable drawable) {
         byte[] value = null;
+        if (drawable == null)
+            return null;
 
         try {
             Bitmap bitmap;
@@ -63,7 +65,7 @@ public class Utility {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
             value = stream.toByteArray();
         } catch (Exception e) {
-            Log.e(TAG, "Error converting drawable to bitmap");
+            Log.e(TAG, "Error converting drawable to bitmap: ", e);
         }
 
         return value;

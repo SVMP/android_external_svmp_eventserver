@@ -21,9 +21,13 @@ package org.mitre.svmp.events;
 public interface Constants {
     public static final int PROXY_PORT = 8001;
 
+    public static final String SVMP_BROADCAST_PERMISSION = "org.mitre.svmp.permission.SVMP_BROADCAST";
+
     public static final String ROTATION_CHANGED_ACTION = "org.mitre.svmp.action.ROTATION_CHANGED";
     public static final String LOCATION_SUBSCRIBE_ACTION = "org.mitre.svmp.action.LOCATION_SUBSCRIBE";
     public static final String LOCATION_UNSUBSCRIBE_ACTION = "org.mitre.svmp.action.LOCATION_UNSUBSCRIBE";
     public static final String INTERCEPT_NOTIFICATION_ACTION = "org.mitre.svmp.action.INTERCEPT_NOTIFICATION";
-    public static final String INTERCEPT_INTENT_ACTION = "org.mitre.svmp.action.INTERCEPT_INTENT";
+    public static final String LAUNCHER_STARTED_ACTION = "org.mitre.svmp.action.LAUNCHER_STARTED";
+    public static final String KEYBOARD_ATTACHED_ACTION = "org.mitre.svmp.action.KEYBOARD_ATTACHED";
+    public static final String KEYBOARD_DETACHED_ACTION = "org.mitre.svmp.action.KEYBOARD_DETACHED";
 }

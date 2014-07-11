@@ -16,9 +16,11 @@ limitations under the License.
 package org.mitre.svmp.events;
 
 import android.app.AlarmManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.os.AsyncTask;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.util.Log;
 
 import org.mitre.svmp.protocol.SVMPProtocol;
@@ -60,6 +62,9 @@ public abstract class BaseServer implements Constants {
     private LocationHandler locationHandler;
     private IntentHandler intentHandler;
     private NotificationHandler notificationHandler;
+    private KeyHandler keyHandler;
+    private ConfigHandler configHandler;
+    private LauncherHandler launcherHandler;
     private ExecutorService sensorMsgExecutor;
     private final Object sendMessageLock = new Object();
     private WebrtcHandler webrtcHandler = null;
@@ -85,18 +90,22 @@ public abstract class BaseServer implements Constants {
         // start receiving notification intercept messages
         notificationHandler = new NotificationHandler(this);
 
+        // receives KeyEvent request messages from the client and injects them into the system
+        keyHandler = new KeyHandler();
+
+        // receives Config request messages from the client and injects them into the system
+        configHandler = new ConfigHandler(context);
+
+        // receives Apps Launch messages from the client
+        // receives launcher broadcasts and sends Apps Exit messages to the client
+        launcherHandler = new LauncherHandler(this);
+
         // We create a SingleThreadExecutor because it executes sequentially
         // this guarantees that sensor event messages will be sent in order
         sensorMsgExecutor = Executors.newSingleThreadExecutor();
 
         this.proxySocket = new ServerSocket(proxyPort);
         Log.d(TAG, "Event server listening on proxyPort " + proxyPort);
-
-        // Now that we're done booting, send a broadcast to start helper services
-        Intent intent = new Intent();
-        intent.setAction("org.mitre.svmp.action.BOOT_COMPLETED");
-        // only BroadcastReceivers with the appropriate permission can receive this broadcast
-        context.sendBroadcast(intent, "org.mitre.svmp.permission.RECEIVE_BOOT_COMPLETED");
 
         clientSocketQueue = new SynchronousQueue<Socket>();
         new Thread(new SocketAcceptor()).start();
@@ -192,6 +201,12 @@ public abstract class BaseServer implements Constants {
                 case APPS:
                     handleApps(msg);
                     break;
+                case KEYEVENT:
+                    keyHandler.handleKeyEvent(msg.getKey());
+                    break;
+                case CONFIG:
+                    configHandler.handleConfig(msg.getConfig());
+                    break;
                 default:
                     break;
                 }
@@ -256,9 +271,10 @@ public abstract class BaseServer implements Constants {
     public void handleRotationInfo(final Request request) {
         RotationInfo rotationInfo = request.getRotationInfo();
         int rotation = rotationInfo.getRotation(); // get rotation value from protobuf
-        Intent intent = new Intent(ROTATION_CHANGED_ACTION); // set action (protected system broadcast)
+        Intent intent = new Intent(ROTATION_CHANGED_ACTION); // set action
         intent.putExtra("rotation", rotation); // add rotation value to intent
         context.sendBroadcast(intent); // send broadcast
+        // the receiver is protected by requiring the sender to have the SVMP_BROADCAST permission
     }
 
     // when we receive a Ping message from the client, pack it back up in a Response wrapper and return it
@@ -292,15 +308,9 @@ public abstract class BaseServer implements Constants {
         AppsRequest appsRequest = request.getApps();
         if (appsRequest.getType() == AppsRequest.AppsRequestType.REFRESH) {
             // the client is asking for a refreshed list of available apps, handle the request
-            new AppsRequestHandler(this, appsRequest).start();
+            new AppsRefreshHandler(this, appsRequest).start();
         } else if (appsRequest.getType() == AppsRequest.AppsRequestType.LAUNCH) {
-            // the client is asking us to launch a specific app
-            String pkgName = appsRequest.getPkgName();
-            Intent intent = context.getPackageManager().getLaunchIntentForPackage(pkgName);
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(intent);
-            }
+            launcherHandler.handleMessage(appsRequest);
         }
     }
 

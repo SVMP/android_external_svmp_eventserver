@@ -26,7 +26,6 @@ import com.google.protobuf.ByteString;
 import org.mitre.svmp.protocol.SVMPProtocol.AppInfo;
 import org.mitre.svmp.protocol.SVMPProtocol.AppsRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.AppsResponse;
-import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 
 import java.security.MessageDigest;
@@ -38,14 +37,15 @@ import java.util.TreeMap;
 
 /**
  * @author Joe Portner
+ * C->S: Receives Apps Refresh requests from client, polls installed apps, and responds
  */
-public class AppsRequestHandler extends Thread {
-    private static final String TAG = AppsRequestHandler.class.getName();
+public class AppsRefreshHandler extends Thread {
+    private static final String TAG = AppsRefreshHandler.class.getName();
 
     private BaseServer baseServer;
     private AppsRequest appsRequest;
 
-    public AppsRequestHandler(BaseServer baseServer, AppsRequest appsRequest) {
+    public AppsRefreshHandler(BaseServer baseServer, AppsRequest appsRequest) {
         this.baseServer = baseServer;
         this.appsRequest = appsRequest;
     }
@@ -72,7 +72,8 @@ public class AppsRequestHandler extends Thread {
                     if (iconId != 0)
                         drawable = resources.getDrawableForDensity(iconId, screenDensity);
                 }
-                //drawable = pm.getApplicationIcon(pkgName);
+//                if (drawable == null)
+//                    drawable = pm.getApplicationIcon(pkgName);
             } catch (Resources.NotFoundException e) {
                 Log.e(TAG, "Failed to find application icon for package '" + pkgName + "':" + e.getMessage());
             } catch (PackageManager.NameNotFoundException e) {
@@ -87,6 +88,7 @@ public class AppsRequestHandler extends Thread {
 
         // build an AppList
         AppsResponse.Builder arBuilder = AppsResponse.newBuilder();
+        arBuilder.setType(AppsResponse.AppsResponseType.REFRESH);
 
         // get Request info
         List<AppInfo> currentApps = appsRequest.getCurrentList();
@@ -99,14 +101,17 @@ public class AppsRequestHandler extends Thread {
                 boolean different = false;
 
                 String appName = appInfo.getAppName();
-                byte[] iconHash = appInfo.getIcon().toByteArray();
+                byte[] iconHash = null;
+                if (appInfo.hasIconHash())
+                    iconHash = appInfo.getIconHash().toByteArray();
                 if (!appName.equals(tuple.appName)) {
                     different = true;
                 }
                 else {
                     byte[] tupleIconHash = getIconHash(tuple);
-                    if (!Arrays.equals(iconHash, tupleIconHash))
+                    if (!Arrays.equals(iconHash, tupleIconHash)) {
                         different = true;
+                    }
                 }
 
                 if (different) {
@@ -192,8 +197,6 @@ public class AppsRequestHandler extends Thread {
             if (this.appName == null)
                 this.appName = pkgName;
             this.icon = icon;
-            // TEST CODE
-            Log.d(TAG, "Found application: " + pkgName + " '" + appName + "'");
         }
     }
 }

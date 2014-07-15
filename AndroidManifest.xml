@@ -45,7 +45,9 @@
     <!-- we use this to spoof a WiFi connection -->
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"/>
     <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
-    <uses-permission android:name="android.permission.CONNECTIVITY_INTERNAL"/>
+
+    <!-- don't activate this permission unless you like bootloops -->
+    <!--<uses-permission android:name="android.permission.CONNECTIVITY_INTERNAL"/>-->
 
     <!-- The webrtc shared library creates a trace file on the sdcard -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />

@@ -114,8 +114,8 @@ public class WebrtcHandler {
         Log.d(TAG, "videoConstraints: " + videoConstraints);
 
 
-        audioConstraints = null;
-        //audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("audio","false"));
+        audioConstraints = new MediaConstraints(); //null;
+        audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("audio","false"));
 
         iceServers = iceServersFromPCConfigJSON(vidInfo.getIceServers());
         onIceServers(iceServers);
@@ -251,6 +251,7 @@ public class WebrtcHandler {
                 lMS.addTrack(videoTrack);
             }
             if (audioConstraints != null) {
+                Log.d(TAG, "Creating AudioTrack");
                 lMS.addTrack(factory.createAudioTrack(
                         "ARDAMSa0",
                         factory.createAudioSource(audioConstraints)));

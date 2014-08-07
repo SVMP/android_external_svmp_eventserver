@@ -16,8 +16,10 @@
 package org.mitre.svmp.events;
 
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.util.Log;
 
 /**
@@ -28,8 +30,14 @@ public class BootBroadcastReceiver extends BroadcastReceiver {
 
     public void onReceive(Context context, Intent intent) {
         // we receive the BOOT_COMPLETED broadcast intent to start this service as soon as the phone boots up
-        if( intent.getAction().equals("android.intent.action.BOOT_COMPLETED") ) {
+        if (intent.getAction() != null && intent.getAction().equals("android.intent.action.BOOT_COMPLETED") ) {
             Log.d(TAG, "Received system boot intent broadcast");
+
+            // Enable our launcher component programmatically to prevent issues with receiving BOOT_COMPLETED
+            ComponentName componentName = new ComponentName(context, LauncherActivity.class);
+            PackageManager pm = context.getPackageManager();
+            if (pm != null)
+                pm.setComponentEnabledSetting(componentName, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, 0);
 
             // start the EventServer if it hasn't been started
             context.startService( new Intent(context, BackgroundService.class) );

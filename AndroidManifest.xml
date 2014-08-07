@@ -16,7 +16,7 @@
   -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="org.mitre.svmp.events">
-    <uses-sdk android:minSdkVersion="17" android:targetSdkVersion="17"/>
+    <uses-sdk android:minSdkVersion="19" android:targetSdkVersion="19"/>
 
     <!-- used to protect broadcasts from LocationManager, NotificationManager, and LauncherActivity -->
     <permission android:name="org.mitre.svmp.permission.SVMP_BROADCAST"
@@ -84,13 +84,14 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
-        <!-- this activity replaces the default launcher -->
+        <!-- this launcher is used for single app mode -->
         <activity android:name=".LauncherActivity"
                   android:launchMode="singleTask"
                   android:clearTaskOnLaunch="true"
                   android:stateNotNeeded="true"
                   android:excludeFromRecents="true"
                   android:screenOrientation="nosensor"
+                  android:enabled="false"
                 >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -13,6 +13,10 @@ LOCAL_SHARED_LIBRARIES := libjingle_peerconnection_so
 
 # Apk must be signed with platform signature for certain permissions
 LOCAL_CERTIFICATE := platform
+LOCAL_PRIVILEGED_MODULE := true
+
+# disable proguard to prevent odd issues
+LOCAL_PROGUARD_ENABLED := disabled
 
 LOCAL_PACKAGE_NAME := remote_events
 include $(BUILD_PACKAGE)

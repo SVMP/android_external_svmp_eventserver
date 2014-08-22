@@ -38,6 +38,9 @@
     <!-- we use this to inject sensor and touch events -->
     <uses-permission android:name="android.permission.INJECT_EVENTS"/>
 
+    <!-- we use this to write to Secure Settings and enable mock locations -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"/>
+
     <!-- we use these to inject Location events -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION"/>

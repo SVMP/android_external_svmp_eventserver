@@ -20,6 +20,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.provider.Settings;
 import android.util.Log;
 
 /**
@@ -38,6 +39,10 @@ public class BootBroadcastReceiver extends BroadcastReceiver {
             PackageManager pm = context.getPackageManager();
             if (pm != null)
                 pm.setComponentEnabledSetting(componentName, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, 0);
+
+            // Enable mock location providers (turned off by default on user builds)
+            // Requires WRITE_SECURE_SETTINGS permission
+            Settings.Secure.putInt(context.getContentResolver(), Settings.Secure.ALLOW_MOCK_LOCATION, 1);
 
             // start the EventServer if it hasn't been started
             context.startService( new Intent(context, BackgroundService.class) );

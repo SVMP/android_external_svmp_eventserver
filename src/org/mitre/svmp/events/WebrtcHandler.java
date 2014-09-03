@@ -590,9 +590,8 @@ public class WebrtcHandler {
     // configuration string.
     private LinkedList<PeerConnection.IceServer> iceServersFromPCConfigJSON(String pcConfig) {
         try {
-            JSONObject json = new JSONObject(pcConfig);
-            JSONArray servers = json.getJSONArray("iceServers");
-            Log.d(TAG, "ICE server JSON: " + json.toString(4));
+            JSONArray servers = new JSONArray(pcConfig);
+            Log.d(TAG, "ICE server JSON: " + servers.toString(4));
             LinkedList<PeerConnection.IceServer> ret = new LinkedList<PeerConnection.IceServer>();
             for (int i = 0; i < servers.length(); ++i) {
                 JSONObject server = servers.getJSONObject(i);

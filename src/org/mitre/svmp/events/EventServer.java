@@ -32,8 +32,11 @@ import android.view.Surface;
 import android.graphics.Point;
 
 import java.io.IOException;
+import java.util.List;
+
 import org.mitre.svmp.protocol.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
+import org.mitre.svmp.protocol.SVMPProtocol.TouchEvent;
 
 public class EventServer extends BaseServer {
     private static final String TAG = EventServer.class.getName();
@@ -75,6 +78,13 @@ public class EventServer extends BaseServer {
     }
 
     @Override
+    public void handleTouch(final List<TouchEvent> eventList) {
+        // we can receive a batch of touch events; process each event individually
+        for (TouchEvent event : eventList)
+            handleTouch(event);
+    }
+
+    // overload to handle individual touch events
     public void handleTouch(final SVMPProtocol.TouchEvent event) {
         // Maintain Downtime
         final long now = SystemClock.uptimeMillis();

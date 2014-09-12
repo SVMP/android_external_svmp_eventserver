@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -169,11 +170,11 @@ public abstract class BaseServer implements Constants {
                     handleScreenInfo(msg);
                     break;
                 case TOUCHEVENT:
-                    handleTouch(msg.getTouch());
+                    handleTouch(msg.getTouchList());
                     break;
                 case SENSOREVENT:
                     // use the thread pool to handle this
-                    handleSensor(msg.getSensor());
+                    handleSensor(msg.getSensorList());
                     break;
                 case INTENT:
                     intentHandler.handleMessage(msg);
@@ -261,11 +262,13 @@ public abstract class BaseServer implements Constants {
     }
 
     public abstract void handleScreenInfo(final Request message) throws IOException;
-    public abstract void handleTouch(final TouchEvent event);
+    public abstract void handleTouch(final List<TouchEvent> event);
 
-    private void handleSensor(final SensorEvent event) {
-        // this SensorEvent was sent from the client, let's pass it on to the Sensor Message Unix socket
-        sensorMsgExecutor.execute(new SensorMessageRunnable(this, sockfd, event));
+    private void handleSensor(final List<SensorEvent> eventList) {
+        // we can receive a batch of sensor events; process each event individually
+        for (SensorEvent event : eventList)
+            // this SensorEvent was sent from the client, let's pass it on to the Sensor Message Unix socket
+            sensorMsgExecutor.execute(new SensorMessageRunnable(this, sockfd, event));
     }
 
     public void handleRotationInfo(final Request request) {

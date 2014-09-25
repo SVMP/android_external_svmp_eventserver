@@ -76,7 +76,7 @@ public class LauncherHandler extends BaseHandler {
             // the client is asking us to launch a specific app
             // set the default launcher to LauncherActivity
             ignoreNextBroadcast = true; // we're about to start the SVMP launcher, ignore the next broadcast received
-            setDefaultLauncher(true);
+            setDefaultLauncher(context, packageManager, true);
 
             // start the requested app
             String pkgName = appsRequest.getPkgName();
@@ -89,12 +89,12 @@ public class LauncherHandler extends BaseHandler {
         else {
             // the client wants to go to the normal Launcher "desktop"
             // set the default launcher to aosp launcher
-            setDefaultLauncher(false);
+            setDefaultLauncher(context, packageManager, false);
         }
     }
 
     // sets the preferred launcher; if svmp is true, will set to LauncherActivity, otherwise will set to aosp launcher
-    private void setDefaultLauncher(boolean svmp) {
+    protected static void setDefaultLauncher(Context context, PackageManager packageManager, boolean svmp) {
         Log.d(TAG, "Setting default launcher to: " + (svmp ? "svmp" : "aosp"));
 
         // set up args
